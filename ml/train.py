@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from . import CLASSES
-from .dataset import SymbolDataset, load_samples, split_samples
+from .dataset import SymbolDataset, load_samples, split_samples, make_manifest
 from .model import SymbolCNN
 from .runtime import load_config, seed_everything, select_device
 
@@ -45,7 +45,7 @@ def train(config):
     splits = split_samples(load_samples(config['data']), seed=config['seed'], **config['split'])
     output = Path(config['output'])
     output.mkdir(parents=True, exist_ok=True)
-    manifest = {name: [str(s.path) for s in subset] for name, subset in splits.items()}
+    manifest = make_manifest(splits)
     (output / 'splits.json').write_text(json.dumps(manifest, indent=2))
     loaders = {name: DataLoader(SymbolDataset(subset, config['preprocessing'], augment=name == 'train' and settings['augment']), batch_size=settings['batch_size'], shuffle=name == 'train', num_workers=0) for name, subset in splits.items() if name != 'test'}
     model = SymbolCNN(**config['model']).to(device)
@@ -57,7 +57,7 @@ def train(config):
         print(json.dumps(row), flush=True)
         if row['val']['loss'] < best - settings['min_delta']:
             best, stale = row['val']['loss'], 0
-            torch.save({'model_state': model.state_dict(), 'optimizer_state': optimizer.state_dict(), 'config': config, 'classes': list(CLASSES), 'epoch': epoch, 'val_loss': best, 'splits': manifest}, output / 'best.pt')
+            torch.save({'model_state': model.state_dict(), 'optimizer_state': optimizer.state_dict(), 'config': config, 'classes': list(CLASSES), 'epoch': epoch, 'val_loss': best, 'splits': manifest, 'manifest_version': 2}, output / 'best.pt')
         else:
             stale += 1
         if stale >= settings['patience']:

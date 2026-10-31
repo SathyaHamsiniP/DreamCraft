@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score, classification_report, ConfusionMatr
 from torch.utils.data import DataLoader
 
 from . import CLASSES
-from .dataset import SymbolDataset, load_samples
+from .dataset import SymbolDataset, load_samples, resolve_test_samples
 from .runtime import load_checkpoint, select_device
 
 
@@ -19,11 +19,8 @@ def evaluate(checkpoint, data=None, output='ml/runs/evaluation', device='cpu'):
     device = select_device(device)
     model, saved = load_checkpoint(checkpoint, device)
     samples = load_samples(data or saved['config']['data'])
-    by_path = {str(s.path): s for s in samples}
-    test_paths = saved['splits']['test']
-    if not test_paths or any(path not in by_path for path in test_paths):
-        raise ValueError("Dataset must include every held-out image recorded in the checkpoint")
-    loader = DataLoader(SymbolDataset([by_path[p] for p in test_paths], saved['config']['preprocessing']), batch_size=64)
+    test_samples = resolve_test_samples(samples, saved)
+    loader = DataLoader(SymbolDataset(test_samples, saved['config']['preprocessing']), batch_size=64)
     truth, predictions = [], []
     with torch.inference_mode():
         for images, labels in loader:

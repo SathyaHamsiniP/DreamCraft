@@ -154,3 +154,154 @@ def test_training_reproducibility(samples, tmp_path):
     config['output'] = str(tmp_path / 'second')
     _, second = load_checkpoint(train(config))
     assert all(torch.equal(first['model_state'][key], second['model_state'][key]) for key in first['model_state'])
+
+
+@pytest.fixture
+def single_class_sheets(tmp_path):
+    """Each contributor photographs one separate sheet per symbol category."""
+    import csv
+    metadata = generate(tmp_path / 'collection', sheets=6)
+    with metadata.open(newline='') as handle:
+        rows = list(csv.DictReader(handle))
+    # Each crop's photographed sheet contains only its own class.
+    for row in rows:
+        row['sheet_id'] = f"{row['label']}_{row['sheet_id']}"
+        old_path = metadata.parent / row['path']
+        new_path = metadata.parent / row['label'] / row['sheet_id'] / old_path.name
+        new_path.parent.mkdir(parents=True)
+        old_path.rename(new_path)
+        row['path'] = new_path.relative_to(metadata.parent).as_posix()
+    extra = []
+    for row in rows:
+        if row['contributor_id'] == 'writer_005':
+            continue  # Include unequal numbers of crops per sheet.
+        copy = dict(row)
+        image = metadata.parent / row['path']
+        destination = image.with_name('second_crop.png')
+        destination.write_bytes(image.read_bytes())
+        copy['path'] = destination.relative_to(metadata.parent).as_posix()
+        extra.append(copy)
+    with metadata.open('w', newline='') as handle:
+        writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows + extra)
+    return load_samples(metadata)
+
+
+@pytest.mark.parametrize('group_by', ['sheet_id', 'contributor_id'])
+@pytest.mark.parametrize('seed', [0, 7, 42])
+def test_one_class_per_sheet(single_class_sheets, group_by, seed):
+    samples = single_class_sheets
+    assert all(len({s.label for s in samples if s.sheet_id == sheet}) == 1 for sheet in {s.sheet_id for s in samples})
+    splits = split_samples(samples, group_by=group_by, seed=seed)
+    for subset in splits.values():
+        assert {s.label for s in subset} == set(range(5))
+    for attribute in ('sheet_id', group_by):
+        sets = [{getattr(s, attribute) for s in subset} for subset in splits.values()]
+        assert all(not sets[i] & sets[j] for i in range(3) for j in range(i))
+    assert sum(map(len, splits.values())) == len(samples)
+    assert splits == split_samples(samples, group_by=group_by, seed=seed)
+
+
+def test_insufficient_independent_sheets(single_class_sheets):
+    samples = single_class_sheets
+    selected = sorted({s.sheet_id for s in samples if s.label == 0})[:2]
+    samples = [s for s in samples if s.label != 0 or s.sheet_id in selected]
+    with pytest.raises(ValueError, match="platform.*only 2 independent groups"):
+        split_samples(samples)
+    collapsed = [replace(s, contributor_id='only_writer') for s in single_class_sheets]
+    with pytest.raises(ValueError, match='only 1 independent groups'):
+        split_samples(collapsed, group_by='contributor_id')
+
+
+def test_incompatible_group_coverage():
+    from ml.dataset import Sample, _automatic_split
+    from pathlib import Path
+    samples, groups = [], []
+    # Each of four contributors supplies three of the first four classes.
+    # Every triple would need all three splits, impossible with four groups.
+    for group in range(4):
+        for label in range(5):
+            if label != group:
+                samples.append(Sample(Path('unused'), label, str(group)))
+                groups.append(group)
+    with pytest.raises(ValueError, match='No valid train/val/test assignment'):
+        _automatic_split(samples, np.array(groups), .2, .2, 42)
+
+
+@pytest.mark.parametrize('source_type', ['csv', 'folder'])
+def test_portable_evaluation_and_integrity(single_class_sheets, tmp_path, source_type):
+    import shutil
+    from pathlib import Path
+    config = load_config('ml/config.yaml')
+    original = single_class_sheets[0].path.parents[2]
+    config['data'] = str(original / 'metadata.csv' if source_type == 'csv' else original)
+    config['output'] = str(tmp_path / 'run')
+    config['model'] = {'channels': [4], 'hidden': 8, 'dropout': .1}
+    config['training']['epochs'] = 1
+    checkpoint = train(config)
+    _, saved = load_checkpoint(checkpoint)
+    assert saved['manifest_version'] == 2
+    assert all(not Path(entry['path']).is_absolute() for entries in saved['splits'].values() for entry in entries)
+    before = evaluate(checkpoint, output=tmp_path / 'before')
+    moved = tmp_path / 'moved_collection'
+    shutil.move(original, moved)
+    source = moved / 'metadata.csv' if source_type == 'csv' else moved
+    after = evaluate(checkpoint, data=source, output=tmp_path / 'after')
+    assert before == after
+    entry = saved['splits']['test'][0]
+    image = moved / entry['path']
+    original_bytes = image.read_bytes()
+    # Same readable pixels, different file bytes must also be noticed.
+    image.write_bytes(original_bytes + b'changed')
+    with pytest.raises(ValueError, match='integrity check failed'):
+        evaluate(checkpoint, data=source, output=tmp_path / 'changed')
+    image.write_bytes(original_bytes)
+    image.unlink()
+    with pytest.raises(ValueError, match='Missing|Missing or duplicate'):
+        evaluate(checkpoint, data=source, output=tmp_path / 'missing')
+
+
+def test_held_out_label_change(samples):
+    from ml.dataset import make_manifest, resolve_test_samples
+    splits = split_samples(samples)
+    saved = {'manifest_version': 2, 'splits': make_manifest(splits)}
+    test = splits['test'][0]
+    changed = [replace(s, label=(s.label + 1) % 5) if s == test else s for s in samples]
+    with pytest.raises(ValueError, match='Label changed'):
+        resolve_test_samples(changed, saved)
+    with pytest.raises(ValueError, match='legacy'):
+        resolve_test_samples(samples, {'splits': {'test': []}})
+
+
+def test_prediction_uses_checkpoint_preprocessing(samples, tmp_path):
+    config = load_config('ml/config.yaml')
+    config['preprocessing'] = {'size': 48, 'threshold': False}
+    model = SymbolCNN(**config['model']).eval()
+    checkpoint = tmp_path / 'prediction.pt'
+    torch.save({'classes': list(CLASSES), 'config': config, 'model_state': model.state_dict()}, checkpoint)
+    tensor, _ = SymbolDataset(samples, config['preprocessing'])[0]
+    assert torch.equal(tensor, preprocess(samples[0].path, **config['preprocessing']))
+    with torch.inference_mode():
+        expected = model(tensor.unsqueeze(0)).softmax(1)[0].tolist()
+    actual = predict(checkpoint, samples[0].path)
+    assert list(actual['scores'].values()) == pytest.approx(expected)
+    assert actual['confidence'] == max(actual['scores'].values())
+
+
+def test_minimum_single_class_sheets(single_class_sheets):
+    samples = [s for s in single_class_sheets if s.contributor_id in {'writer_000', 'writer_001', 'writer_002'}]
+    for grouping in ('sheet_id', 'contributor_id'):
+        splits = split_samples(samples, group_by=grouping)
+        assert all({s.label for s in subset} == set(range(5)) for subset in splits.values())
+
+
+def test_duplicates_reduce_available_groups(single_class_sheets):
+    samples = [s for s in single_class_sheets if s.contributor_id in {'writer_000', 'writer_001', 'writer_002'}]
+    coins = [s for s in samples if s.label == 1]
+    # Different sheet IDs cannot make duplicate crops independent.
+    original = coins[0].path.read_bytes()
+    for sample in coins:
+        sample.path.write_bytes(original)
+    with pytest.raises(ValueError, match="coin.*only 1 independent groups"):
+        split_samples(samples)

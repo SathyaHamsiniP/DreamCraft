@@ -10,8 +10,8 @@ The ML module can:
 
 - Load labeled images from folders or a CSV file.
 - Prepare grayscale images and train a configurable model on CPU, with optional GPU support.
-- Keep images from the same drawing sheet together when splitting the dataset.
-- Save the best model, evaluate it on separate test images and predict a single symbol.
+- Keep images from the same drawing sheet together, with every class in each split when the groups allow it. Contributor grouping is also supported.
+- Save the best model, evaluate it on separate test images and predict a single symbol. Saved test images can be found after moving the dataset, with label and file checks before evaluation.
 - Generate a small artificial dataset to check that the training steps run.
 
 The handwritten dataset is not available yet. The artificial examples are only for checking the code; their scores do not show how well the model will recognise real drawings. CPU training has been tested. GPU training still needs testing.

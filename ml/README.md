@@ -24,7 +24,7 @@ The first install command selects the CPU version of PyTorch, so CUDA libraries 
 | PyTorch | Builds and trains the CNN |
 | OpenCV | Resizes images, applies thresholding and changes training images slightly |
 | NumPy | Handles image arrays and random values |
-| scikit-learn | Splits grouped data and calculates evaluation metrics |
+| scikit-learn | Calculates evaluation metrics |
 | Pillow | Opens image files and reads image orientation |
 | Matplotlib | Saves the confusion matrix plot |
 | PyYAML | Reads the settings in `config.yaml` |
@@ -131,7 +131,11 @@ The default split groups images by `sheet_id`. Set `split.group_by: contributor_
 
 The split code also keeps images with identical results under the default preprocessing together, even if their sheet IDs differ. It does not detect every near-duplicate, so accurate sheet IDs still matter.
 
-Automatic splitting needs at least three independent groups. The default fractions are approximately 60% training, 20% validation and 20% testing. These are group-based splits, so image counts can differ from those percentages. The code does not balance classes automatically. If any split lacks a class, it stops with an error. Add more groups or supply balanced explicit assignments; do not keep changing the seed to get a better test score.
+Automatic splitting supports collections where each photographed sheet contains only one class. It first finds an assignment that puts all five classes in training, validation and test without separating related images. It then places the remaining groups to get reasonably close to the requested class counts. The seed makes the assignment repeatable.
+
+Each class needs at least three independent groups after sheet, contributor and duplicate grouping. For example, three coin sheets from one person count as only one group when contributor grouping is selected. Having three groups per class is necessary, but overlapping contributor groups can still make an assignment impossible. The error explains whether a class has too few groups or the combined grouping rules prevent a valid split.
+
+The default targets are 60% training, 20% validation and 20% testing. Class coverage and keeping groups together take priority over exact percentages. A small dataset with only three single-class sheets per class will need one of each class in each split, even though that gives roughly equal split sizes. Collect more independent sheets or contributors for a closer match. Explicit splits are also checked for class coverage and leakage. Do not change the seed just to get a better test score.
 
 ## Train the model
 
@@ -199,9 +203,9 @@ The training output directory contains:
 
 - `best.pt`: a checkpoint saved when validation loss improves by more than `min_delta`.
 - `history.json`: training and validation loss and accuracy for each completed epoch.
-- `splits.json`: the absolute image paths assigned to each dataset split.
+- `splits.json`: image paths relative to the dataset directory, labels and SHA-256 hashes for each split. A SHA-256 hash records the file contents so later changes can be detected.
 
-A checkpoint stores model weights, optimizer state, class order, configuration, split paths, the saved epoch and validation loss. It can be loaded for evaluation and prediction. Automatic training resume is not implemented.
+A checkpoint stores model weights, optimizer state, class order, configuration, the portable split manifest, its format version, the saved epoch and validation loss. It can be loaded for evaluation and prediction. Automatic training resume is not implemented.
 
 Python, NumPy and PyTorch seeds are set for repeatability. Training uses deterministic operations and zero background data-loader workers. Identical results across different hardware or package versions are not guaranteed.
 
@@ -211,7 +215,17 @@ Python, NumPy and PyTorch seeds are set for repeatability. Training uses determi
 python -m ml.evaluate ml/runs/real/best.pt --output ml/runs/real/evaluation
 ```
 
-Evaluation uses the test paths saved in the checkpoint. Keep the dataset and labels unchanged after training. If the images are moved, their original absolute paths must be restored. The optional `--data` argument can point to another manifest containing those same paths; it does not select a new unrelated test set.
+Evaluation uses the test images recorded in the checkpoint. Image identifiers are paths relative to the dataset folder, or relative to the CSV’s parent folder for CSV input. Keep that internal folder layout when moving the dataset. CSV image paths should also be relative so the metadata can move with the images. All referenced images must be inside the CSV’s parent directory or its subdirectories; external paths are rejected because they do not share a portable dataset root.
+
+Use `--data` to select the new location:
+
+```bash
+python -m ml.evaluate ml/runs/real/best.pt --data /new/location/real/metadata.csv --output ml/runs/real/evaluation
+```
+
+For folder input, pass `/new/location/real` instead. Without `--data`, evaluation uses the original dataset setting stored in the checkpoint. The new location must contain the same saved test images, not a replacement test set. Before computing metrics, evaluation checks that every test identifier exists, its label matches and its file bytes match the saved hash. Even re-encoding an image changes its bytes and requires a new training run if that version is to be evaluated. Keep an unchanged copy of the original data.
+
+Older checkpoints with absolute-path manifests do not contain the labels and hashes needed for these checks. Retrain once to produce the new portable manifest. Existing checkpoints can still be used for single-image prediction.
 
 The output directory receives `metrics.json` and `confusion_matrix.png`. The report includes:
 
@@ -241,7 +255,7 @@ Only load checkpoints from trusted sources. Loading uses PyTorch’s restricted 
 | --- | --- |
 | `__init__.py` | Defines the shared class order so labels stay consistent across training and prediction. |
 | `preprocess.py` | Converts different image inputs into the same tensor format, keeping training and inference consistent. A tensor is the numeric array passed to PyTorch. |
-| `dataset.py` | Reads folders or CSV metadata, validates images, checks grouping rules and supplies samples to the training loader. |
+| `dataset.py` | Reads folders or CSV metadata, finds class-covering group splits, builds portable manifests and checks test image labels and hashes. It also supplies samples to the training loader. |
 | `model.py` | Defines the configurable CNN that learns to classify each crop. |
 | `runtime.py` | Reads YAML settings, sets random seeds, selects a device and reloads checkpoints. These shared steps are used by several commands. |
 | `train.py` | Updates model weights, checks validation results, stops training early and saves the best checkpoint. |
@@ -260,14 +274,18 @@ Run the automated checks from the repository root:
 python -m pytest ml/tests -q
 ```
 
-Tests cover image dimensions, invalid inputs, folder and CSV loading, grouped and explicit splits, duplicate leakage checks, the model’s forward pass, training and validation, early stopping, checkpoint loading, repeatable training, evaluation and prediction.
+Tests cover image dimensions, invalid inputs, folder and CSV loading, grouped and explicit splits, duplicate leakage checks, the model’s forward pass, training and validation, early stopping, checkpoint loading, repeatable training, evaluation and prediction. They also check one-class-per-sheet collections, impossible group assignments, moved datasets, changed labels and image contents, and consistent preprocessing during prediction.
+
+The GitHub Actions workflow in `../.github/workflows/ml-tests.yml` runs the suite on Python 3.12 with CPU PyTorch for pushes to `main` and `feature/ml-pipeline`, and for pull requests targeting `main`. No real dataset or GPU is needed.
 
 Common setup and data errors:
 
 - `Dataset does not exist`: check `--data` or the `data` setting and run from the repository root.
 - `CSV requires path,label,sheet_id columns`: add the required header fields.
-- A split lacks a class: collect more independent groups or prepare balanced explicit splits containing every class.
+- Too few independent groups or no valid assignment: collect more independent sheets or contributors for the affected classes. Check that grouping IDs describe the collection correctly.
+- An explicit split lacks a class: prepare assignments containing every class in each split.
 - `Data leakage`: keep related sheets, contributors or identical preprocessed images in the same split.
+- A held-out image is missing or fails its label/hash check: check the dataset location and restore the unchanged training data.
 - `CUDA requested but unavailable`: use `cpu` or `auto`, or check the GPU and PyTorch installation.
 - Synthetic output directory is not empty: reuse the existing dataset or choose a new directory.
 
