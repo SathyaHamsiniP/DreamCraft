@@ -1,0 +1,53 @@
+name: Game and backend tests
+
+on:
+  push:
+    branches: [main, feature/game-backend-playability]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: game/package-lock.json
+      - name: Install Python dependencies
+        run: python -m pip install -r backend/requirements.txt
+      - name: Test contracts, API and playability
+        run: python -m pytest contracts/tests backend/tests playability/tests -q
+      - name: Install game dependencies
+        run: npm ci --prefix game
+      - name: Test and build game
+        working-directory: game
+        run: |
+          npm test
+          npm run typecheck
+          npm run build
+      - name: Install Chromium
+        working-directory: game
+        run: npx playwright install --with-deps chromium
+      - name: Test gameplay and API in browser
+        working-directory: game
+        run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: game/test-results/
+          retention-days: 7

@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DreamCraft level 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "world", "objects"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "world": {
+      "type": "object", "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "number", "minimum": 64, "maximum": 4096},
+        "height": {"type": "number", "minimum": 64, "maximum": 4096}
+      }
+    },
+    "objects": {
+      "type": "array", "minItems": 3, "maxItems": 256,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "type", "x", "y", "width", "height"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9_-]+$"},
+          "type": {"enum": ["platform", "coin", "spike", "spawn", "goal"]},
+          "x": {"type": "number", "minimum": 0},
+          "y": {"type": "number", "minimum": 0},
+          "width": {"type": "number", "exclusiveMinimum": 0},
+          "height": {"type": "number", "exclusiveMinimum": 0},
+          "recognition": {"type": "object"}
+        }
+      }
+    },
+    "recognition": {"type": "object"}
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "world": {
+    "width": 960,
+    "height": 540
+  },
+  "objects": [
+    {
+      "id": "floor",
+      "type": "platform",
+      "x": 0,
+      "y": 460,
+      "width": 960,
+      "height": 20
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 50,
+      "y": 430,
+      "width": 20,
+      "height": 30
+    },
+    {
+      "id": "goal",
+      "type": "goal",
+      "x": 850,
+      "y": 424,
+      "width": 24,
+      "height": 36
+    },
+    {
+      "id": "coin",
+      "type": "coin",
+      "x": 140,
+      "y": 430,
+      "width": 16,
+      "height": 16
+    }
+  ]
+}

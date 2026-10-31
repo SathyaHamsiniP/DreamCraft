@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "world": {
+    "width": 960,
+    "height": 540
+  },
+  "objects": [
+    {
+      "id": "a",
+      "type": "platform",
+      "x": 0,
+      "y": 460,
+      "width": 400,
+      "height": 20
+    },
+    {
+      "id": "b",
+      "type": "platform",
+      "x": 400,
+      "y": 180,
+      "width": 400,
+      "height": 20
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 50,
+      "y": 430,
+      "width": 20,
+      "height": 30
+    },
+    {
+      "id": "goal",
+      "type": "goal",
+      "x": 650,
+      "y": 144,
+      "width": 24,
+      "height": 36
+    }
+  ]
+}
