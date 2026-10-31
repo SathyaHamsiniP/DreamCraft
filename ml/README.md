@@ -1,79 +1,53 @@
-# DreamCraft symbol classifier
+# Symbol classification
 
-A modular PyTorch CNN for **individual cropped symbols**, in fixed class order:
-`platform` (rectangle), `coin` (circle), `spike` (triangle), `spawn` (S), `goal` (G).
-It does not localize objects on full sheets or generate a playable game.
-No real handwriting dataset or trained production model is included.
+This module recognises one cropped game symbol at a time. It uses a CNN, a neural network that learns image patterns, to choose between `platform`, `coin`, `spike`, `spawn` and `goal`.
 
-## Environment
+The input is a cropped image of a rectangle, circle, triangle, S or G drawn with dark strokes on light paper. Images are prepared as 64×64 grayscale inputs by default. Finding and cropping symbols from a full sheet is separate work and is not included here.
 
-Run commands from the repository root. Python 3.12 is tested; Python 3.10+ is recommended.
+## Set up the environment
+
+Python 3.12 is the tested version. Run the following commands from the repository root, not from inside `ml/`:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-# For restricted cloud home directories, keep caches writable:
+python -m pip install 'torch>=2.6,<3' --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -r ml/requirements.txt
+```
+
+A virtual environment keeps these packages separate from other Python projects. The activation command above is for Bash on Linux or macOS. In Windows PowerShell, use `.venv\Scripts\Activate.ps1` instead.
+
+The first install command selects the CPU version of PyTorch, so CUDA libraries are not needed. The remaining packages are listed in `requirements.txt`:
+
+| Package | Purpose |
+| --- | --- |
+| PyTorch | Builds and trains the CNN |
+| OpenCV | Resizes images, applies thresholding and changes training images slightly |
+| NumPy | Handles image arrays and random values |
+| scikit-learn | Splits grouped data and calculates evaluation metrics |
+| Pillow | Opens image files and reads image orientation |
+| Matplotlib | Saves the confusion matrix plot |
+| PyYAML | Reads the settings in `config.yaml` |
+| pytest | Runs automated tests |
+
+The requirements use version ranges. For an experiment that needs exact package versions, record the environment with `python -m pip freeze` in a local file.
+
+If a cloud environment has a read-only home directory, set writable cache paths before running the commands below:
+
+```bash
 export MPLCONFIGDIR=/tmp/dreamcraft-matplotlib
 export XDG_CACHE_HOME=/tmp/dreamcraft-cache
-# CPU build avoids downloading CUDA libraries:
-pip install 'torch>=2.6,<3' --index-url https://download.pytorch.org/whl/cpu
-pip install -r ml/requirements.txt
-python -m pytest ml/tests -q
 ```
 
-For GPU use, install the appropriate official PyTorch CUDA build instead of the
-CPU command, then set `device: cuda` (requires a compatible GPU/driver) or `auto`.
-CPU is the default. GPU execution was not validated in the initial implementation.
-Requirements specify compatible ranges; use `pip freeze` in your own environment
-when an exact experiment dependency snapshot is needed.
+### Optional GPU use
 
-## Real dataset contract
+For a compatible NVIDIA GPU, install the matching CUDA build from the official PyTorch installation instructions instead of the CPU build. Set `device: cuda` in `ml/config.yaml`, or use `auto` to select CUDA when it is available and CPU otherwise. The default is `cpu`.
 
-Supply cropped images of dark strokes on light paper. PNG, JPEG, BMP and WebP
-are supported. The loader validates every image before training. All five classes
-must be represented in every split. Corrupt files, unknown labels, missing paths,
-duplicate paths and insufficient groups raise errors.
+GPU execution has not been tested yet. Deterministic CUDA operations may also need `CUBLAS_WORKSPACE_CONFIG=:4096:8` set before Python starts.
 
-Preferred CSV metadata:
+## Try a short run
 
-```csv
-path,label,sheet_id,contributor_id,split
-images/crop_001.png,platform,sheet_001,writer_001,train
-images/crop_002.png,coin,sheet_002,writer_002,val
-images/crop_003.png,spawn,sheet_003,writer_003,test
-```
-
-This is a schema example, not a complete dataset. Paths are relative to the CSV.
-`path`, `label`, and nonempty `sheet_id` are required. Sheet IDs must be globally
-unique across contributors. `contributor_id` is required when selecting contributor
-grouping. `split` is optional; if supplied, every row must use `train`, `val`, or
-`test`. Explicit assignments are checked for leakage and class coverage.
-
-Alternatively use folders:
-
-```text
-ml/data/real/
-  platform/sheet_001/crop_001.png
-  coin/sheet_001/crop_002.png
-  spike/sheet_002/crop_003.png
-  spawn/sheet_002/crop_004.png
-  goal/sheet_003/crop_005.png
-```
-
-Add enough independently collected sheets for all three splits. Folder input
-supports sheet grouping; use CSV for contributors or explicit splits. Do not
-invent a separate sheet ID for each crop from the same source sheet.
-
-Automatic splitting uses seeded group shuffle, not image-level shuffle. Crops
-from a sheet stay together; `split.group_by: contributor_id` additionally keeps
-all work by each contributor together. Exact preprocessed duplicates also stay
-together, including duplicates assigned different sheet IDs. This does not detect
-near-duplicates; reliable provenance metadata is still essential. Group splits
-are approximate fractions and not stratified; if a split lacks a class, add data
-or provide balanced explicit splits rather than repeatedly selecting a seed based
-on test performance. Contributor grouping is preferred for unseen-writer evaluation.
-
-## Smoke test without real data
+The real handwritten dataset is not ready yet. The synthetic generator draws a few simple shapes and letters so the loading, training and prediction steps can be checked without downloading a dataset.
 
 ```bash
 python -m ml.synthetic --output ml/data/synthetic --sheets 15 --seed 42
@@ -82,72 +56,223 @@ python -m ml.evaluate ml/runs/smoke/best.pt --output ml/runs/smoke/evaluation
 python -m ml.predict ml/runs/smoke/best.pt ml/data/synthetic/coin/sheet_000/symbol.png
 ```
 
-The generator refuses to overwrite nonempty directories. These 75 artificial
-symbols only test integration. **Synthetic-only accuracy says nothing about real
-handwriting performance.** No external dataset is downloaded. Generated data,
-checkpoints, reports and environments are ignored by Git.
+This creates 75 images: one image for each of the five classes on each of 15 artificial sheets. The generator stops if its output directory is not empty, so existing images are not overwritten. If that dataset already exists, skip the generator command. To generate another dataset, choose a different output directory and pass its `metadata.csv` to training with `--data`.
 
-## Training and configuration
+A smoke test is a small run that checks whether the main steps work together. Two epochs are enough for that check, but are not intended to train a useful model. Scores on these artificial images do not measure performance on real handwriting.
+
+## Prepare real images
+
+Use these exact labels:
+
+| Label | Symbol |
+| --- | --- |
+| `platform` | Rectangle |
+| `coin` | Circle |
+| `spike` | Triangle |
+| `spawn` | S |
+| `goal` | G |
+
+PNG, JPG/JPEG, BMP and WebP files are supported. Each image should contain one cropped symbol. Keep the source sheet and contributor information while collecting crops; it is needed to split the data correctly.
+
+### CSV metadata
+
+CSV is the preferred option when contributor information or fixed split assignments are needed. For example, `ml/data/real/metadata.csv` could begin with:
+
+```csv
+path,label,sheet_id,contributor_id
+images/rectangle_001.png,platform,sheet_001,writer_001
+images/circle_001.png,coin,sheet_001,writer_001
+images/triangle_001.png,spike,sheet_002,writer_002
+```
+
+This only shows the format. A usable dataset needs all five classes and enough separate groups for training, validation and testing.
+
+- `path` points to the image, relative to the CSV file.
+- `label` is one of the five names above.
+- `sheet_id` identifies the original drawing sheet and cannot be empty. Use a globally unique ID, such as `writer_001_sheet_001`, if different people number their sheets the same way.
+- `contributor_id` identifies the person who drew the sheet. It is optional for sheet grouping and required for contributor grouping.
+- `split` is an optional column. If used, every row must contain `train`, `val` or `test`.
+
+For example, a fixed assignment can use this header and row:
+
+```csv
+path,label,sheet_id,contributor_id,split
+images/rectangle_001.png,platform,writer_001_sheet_001,writer_001,train
+```
+
+All images from that sheet must then use the same split. The loader also checks the other grouping rules described below.
+
+### Labeled folders
+
+For sheet grouping without a CSV, use `class/sheet_id/image` folders:
+
+```text
+ml/data/real/
+  platform/sheet_001/rectangle.png
+  coin/sheet_001/circle.png
+  spike/sheet_002/triangle.png
+  spawn/sheet_002/start.png
+  goal/sheet_003/finish.png
+```
+
+This is a layout example, not enough data for training. Each split needs images from all five classes. Images placed directly under a class folder are rejected because the loader would have no sheet ID. Use CSV input if contributors need to be grouped or splits need to be assigned manually.
+
+### Why grouping matters
+
+The dataset is divided into three parts:
+
+- Training images are used to update the model’s weights, the numbers it learns during training.
+- Validation images help select the best model and decide when training should stop.
+- Test images are kept aside for evaluation after training.
+
+Crops from the same sheet must stay in one part. Otherwise, the model could see similar drawing styles or backgrounds during both training and testing, making its test results look better than they should. This is called data leakage.
+
+The default split groups images by `sheet_id`. Set `split.group_by: contributor_id` to keep all sheets from the same person together as well. Contributor grouping is useful when checking how the model handles a new person’s handwriting.
+
+The split code also keeps images with identical results under the default preprocessing together, even if their sheet IDs differ. It does not detect every near-duplicate, so accurate sheet IDs still matter.
+
+Automatic splitting needs at least three independent groups. The default fractions are approximately 60% training, 20% validation and 20% testing. These are group-based splits, so image counts can differ from those percentages. The code does not balance classes automatically. If any split lacks a class, it stops with an error. Add more groups or supply balanced explicit assignments; do not keep changing the seed to get a better test score.
+
+## Train the model
+
+For CSV input:
 
 ```bash
 python -m ml.train --config ml/config.yaml --data ml/data/real/metadata.csv --output ml/runs/real
 ```
 
-Edit YAML to configure convolution channels, dense hidden size, dropout, batch
-size, learning rate, weight decay, epochs, patience, minimum validation improvement,
-augmentation, seed, device and split fractions. Paths in YAML and CLI are relative
-to the current working directory. Use a distinct output directory per experiment;
-existing run artifacts in that directory can be overwritten.
+For folder input, replace the data argument:
 
-Preprocessing converts PIL images to EXIF-corrected grayscale; NumPy input must be
-uint8 grayscale or RGB/RGBA (not OpenCV BGR). Optional Otsu thresholding precedes
-aspect-preserving resize and white padding to 64×64 by default. The outer margin
-is two pixels on the longest axis. Values become float32 in [0,1], with ink near
-one and paper near zero. Training alone applies small seeded rotations, scale and
-translation; flips are avoided because they change S/G semantics. Thresholding
-can be disabled for shaded/noisy scans. Inspect real inputs before selecting it.
+```bash
+python -m ml.train --config ml/config.yaml --data ml/data/real --output ml/runs/real
+```
 
-Training uses Adam and cross-entropy, validates every epoch, and saves `best.pt`
-only when validation loss improves. Patience stops training after consecutive
-non-improving epochs. `history.json` records actual epochs and `splits.json`
-records image membership. The checkpoint contains weights, optimizer state,
-class mapping, configuration, split paths, best epoch and validation loss.
-It supports inference/loading; automatic training resume is not implemented.
-Seeds cover Python, NumPy and Torch; deterministic algorithms and zero loader
-workers aid repeatability on the same software/hardware. Cross-platform bitwise
-identity is not guaranteed. CUDA may require `CUBLAS_WORKSPACE_CONFIG=:4096:8`
-to be set before starting Python for deterministic operations.
+Only run the command that matches the dataset layout. Use a separate output directory for each experiment because files from an earlier run can be overwritten.
 
-## Evaluation and prediction
+Training uses Adam, an algorithm that updates the model’s weights, and cross-entropy loss, which measures how far the predicted class scores are from the labels. One epoch means one pass through the training images. Validation runs after every epoch.
 
-Evaluation uses the held-out paths saved during training, never validation data:
+### Configuration
+
+`ml/config.yaml` contains the defaults. Paths in the YAML file and command arguments are relative to the current working directory. CSV image paths are the exception: they are relative to the CSV itself.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `seed` | `42` | Makes random choices repeatable on the same setup |
+| `device` | `cpu` | Selects CPU, CUDA or automatic device selection |
+| `threads` | `2` | Number of CPU threads used by PyTorch |
+| `data` | `ml/data/synthetic/metadata.csv` | Dataset folder or CSV |
+| `output` | `ml/runs/default` | Directory for training outputs |
+| `preprocessing.size` | `64` | Width and height of the prepared image |
+| `preprocessing.threshold` | `true` | Converts grayscale pixels to black or white before resizing |
+| `model.channels` | `[16, 32, 64]` | Feature counts in the convolution layers |
+| `model.hidden` | `64` | Size of the dense layer used for classification |
+| `model.dropout` | `0.2` | Fraction of hidden values randomly disabled during training to reduce memorisation |
+| `split.val_fraction` | `0.2` | Approximate validation share |
+| `split.test_fraction` | `0.2` | Approximate test share |
+| `split.group_by` | `sheet_id` | Groups by sheet or contributor |
+| `training.epochs` | `30` | Maximum number of training passes |
+| `training.batch_size` | `32` | Number of images processed together |
+| `training.learning_rate` | `0.001` | Controls the size of weight updates |
+| `training.weight_decay` | `0.0001` | Penalty that discourages large weights |
+| `training.patience` | `5` | Consecutive epochs without enough validation improvement before stopping |
+| `training.min_delta` | `0.0001` | Required decrease in validation loss to count as improvement |
+| `training.augment` | `true` | Applies small image variations during training |
+
+The command line can override `data`, `output` and `epochs`; other settings are changed in YAML. The model accepts one to five convolution blocks. Each block uses a convolution, ReLU activation and max pooling, followed by adaptive pooling before the dense layers. Pooling reduces the image features to a smaller representation. Larger networks need an input size that can pass through all pooling layers.
+
+### Image preparation
+
+Training and prediction share the same preprocessing steps:
+
+1. Open the image, apply its stored orientation when available and convert it to grayscale.
+2. If enabled, apply Otsu thresholding, which chooses a cutoff to separate dark strokes from light paper.
+3. Resize while keeping the original width-to-height ratio, then centre the image on a white square. The longest side has a two-pixel margin at the default settings.
+4. Convert pixel values to float32 numbers between 0 and 1, with paper near 0 and ink near 1.
+
+Only training images receive augmentation: small random rotations, size changes and shifts. Images are not flipped because a flipped letter may no longer represent the intended symbol. Set `preprocessing.threshold: false` if black-and-white conversion removes useful detail from real scans.
+
+The Python preprocessing function accepts a file path, a Pillow image or a NumPy array. Arrays must use `uint8` values and grayscale, RGB or RGBA channels. OpenCV colour arrays use BGR by default and must be converted to RGB first.
+
+### Saved outputs
+
+The training output directory contains:
+
+- `best.pt`: a checkpoint saved when validation loss improves by more than `min_delta`.
+- `history.json`: training and validation loss and accuracy for each completed epoch.
+- `splits.json`: the absolute image paths assigned to each dataset split.
+
+A checkpoint stores model weights, optimizer state, class order, configuration, split paths, the saved epoch and validation loss. It can be loaded for evaluation and prediction. Automatic training resume is not implemented.
+
+Python, NumPy and PyTorch seeds are set for repeatability. Training uses deterministic operations and zero background data-loader workers. Identical results across different hardware or package versions are not guaranteed.
+
+## Evaluate a saved model
 
 ```bash
 python -m ml.evaluate ml/runs/real/best.pt --output ml/runs/real/evaluation
+```
+
+Evaluation uses the test paths saved in the checkpoint. Keep the dataset and labels unchanged after training. If the images are moved, their original absolute paths must be restored. The optional `--data` argument can point to another manifest containing those same paths; it does not select a new unrelated test set.
+
+The output directory receives `metrics.json` and `confusion_matrix.png`. The report includes:
+
+- Accuracy: the fraction of test images classified correctly.
+- Precision: how often predictions for a class are correct.
+- Recall: how many actual examples of a class are found.
+- F1-score: a combined measure of precision and recall.
+- Confusion matrix: a table showing which actual classes were predicted as each class.
+
+Precision, recall and F1 are reported per class, as a macro average that gives every class equal weight, and as a weighted average based on class counts.
+
+## Predict one symbol
+
+```bash
 python -m ml.predict ml/runs/real/best.pt path/to/cropped_symbol.png
 ```
 
-Reports contain accuracy, per-class and macro/weighted precision, recall and F1,
-plus a five-class confusion matrix in JSON and PNG. Keep the dataset unchanged
-between training and evaluation. If relocated, restore its original absolute
-paths (checkpoint membership is deliberately strict). `--data` selects a manifest
-containing those same paths, not a new unrelated test dataset.
+Replace the image path with an actual crop. Prediction uses the model settings and preprocessing stored in the checkpoint. Evaluation and prediction also accept `--device cpu`, `--device cuda` or `--device auto`.
 
-Prediction returns `predicted_class`, its softmax `confidence`, and scores for
-all five classes. Scores are **not calibrated probabilities** or an out-of-domain
-rejection mechanism. Even blank or unknown symbols receive a class; assess these
-cases and calibrate on real held-out data before product integration. Load only
-trusted checkpoints; loading uses PyTorch's restricted `weights_only=True` mode.
+The JSON result contains `predicted_class`, `confidence` and `scores` for all five labels. The scores come from softmax, which converts the model’s outputs into values that sum to one. These values have not been calibrated against real handwriting, so a score of 0.9 should not be treated as a proven 90% chance of being correct. Blank images and unknown symbols still receive one of the five labels; there is no rejection option yet.
 
-## Modules and verification
+Only load checkpoints from trusted sources. Loading uses PyTorch’s restricted `weights_only=True` mode.
 
-- `preprocess.py`, `dataset.py`: shared transforms, validation and safe splits.
-- `model.py`: configurable CNN with adaptive pooling.
-- `runtime.py`: configuration, seeds, devices and checkpoint loading.
-- `train.py`, `evaluate.py`, `predict.py`: importable APIs and module CLIs.
-- `synthetic.py`: artificial smoke fixtures only.
-- `tests/test_pipeline.py`: preprocessing, loaders, group leakage, errors, forward
-  pass, training/validation, early stopping, checkpoint reload, metrics and inference.
+## Module guide
 
-Real-world quality, GPU execution and full-sheet localization remain separate
-validation tasks. No production accuracy claim is made.
+| File | What it does and why it is needed |
+| --- | --- |
+| `__init__.py` | Defines the shared class order so labels stay consistent across training and prediction. |
+| `preprocess.py` | Converts different image inputs into the same tensor format, keeping training and inference consistent. A tensor is the numeric array passed to PyTorch. |
+| `dataset.py` | Reads folders or CSV metadata, validates images, checks grouping rules and supplies samples to the training loader. |
+| `model.py` | Defines the configurable CNN that learns to classify each crop. |
+| `runtime.py` | Reads YAML settings, sets random seeds, selects a device and reloads checkpoints. These shared steps are used by several commands. |
+| `train.py` | Updates model weights, checks validation results, stops training early and saves the best checkpoint. |
+| `evaluate.py` | Measures the saved model on held-out test images and writes metrics and a confusion plot. |
+| `predict.py` | Loads a checkpoint and returns a class and scores for one image. |
+| `synthetic.py` | Generates small artificial datasets for checking the code before real images are available. |
+| `config.yaml` | Stores settings so experiments can be changed without editing training code. |
+| `requirements.txt` | Lists the packages needed to run and test the module. |
+| `tests/test_pipeline.py` | Checks the main steps and expected errors using temporary synthetic images. |
+
+## Tests and common problems
+
+Run the automated checks from the repository root:
+
+```bash
+python -m pytest ml/tests -q
+```
+
+Tests cover image dimensions, invalid inputs, folder and CSV loading, grouped and explicit splits, duplicate leakage checks, the model’s forward pass, training and validation, early stopping, checkpoint loading, repeatable training, evaluation and prediction.
+
+Common setup and data errors:
+
+- `Dataset does not exist`: check `--data` or the `data` setting and run from the repository root.
+- `CSV requires path,label,sheet_id columns`: add the required header fields.
+- A split lacks a class: collect more independent groups or prepare balanced explicit splits containing every class.
+- `Data leakage`: keep related sheets, contributors or identical preprocessed images in the same split.
+- `CUDA requested but unavailable`: use `cpu` or `auto`, or check the GPU and PyTorch installation.
+- Synthetic output directory is not empty: reuse the existing dataset or choose a new directory.
+
+Keep local images under `ml/data/` and generated results under `ml/runs/`. Both are ignored by Git, as are checkpoints, virtual environments and Python caches. Other custom data or output locations need their own ignore rules before committing.
+
+## Work still needed
+
+The CPU workflow has passed automated tests and a short synthetic training run. Real handwriting performance still needs to be measured after labeled images are collected. GPU execution, confidence calibration and handling unknown symbols also need further work. Full-sheet object localisation and the playable game are outside this module’s current scope.
