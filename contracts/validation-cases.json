@@ -1,0 +1,98 @@
+[
+  {
+    "file": "flat.json",
+    "valid": true
+  },
+  {
+    "file": "one-jump.json",
+    "valid": true
+  },
+  {
+    "file": "multi-jump.json",
+    "valid": true
+  },
+  {
+    "file": "coins.json",
+    "valid": true
+  },
+  {
+    "file": "spikes.json",
+    "valid": true
+  },
+  {
+    "file": "wide-gap.json",
+    "valid": true
+  },
+  {
+    "file": "high-goal.json",
+    "valid": true
+  },
+  {
+    "file": "blocked-jump.json",
+    "valid": true
+  },
+  {
+    "file": "edge-horizontal.json",
+    "valid": true
+  },
+  {
+    "file": "edge-vertical.json",
+    "valid": true
+  },
+  {
+    "file": "invalid-missing-spawn.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-missing-goal.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-outside.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-zero-size.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-duplicate-id.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-unknown-type.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-version.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-bad-spawn.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-overlap-solid.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-missing-world.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-missing-id.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-extra-spawn.json",
+    "valid": false
+  },
+  {
+    "file": "invalid-extra-goal.json",
+    "valid": false
+  },
+  {
+    "file": "edge-vertical-low.json",
+    "valid": true
+  }
+]

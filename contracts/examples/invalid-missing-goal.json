@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "world": {
+    "width": 960,
+    "height": 540
+  },
+  "objects": [
+    {
+      "id": "floor",
+      "type": "platform",
+      "x": 0,
+      "y": 460,
+      "width": 960,
+      "height": 20
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 50,
+      "y": 430,
+      "width": 20,
+      "height": 30
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><title>DreamCraft game</title></head>
+<body><h1>DreamCraft</h1><p>A/D or arrows: move. Space/W/up: jump. Enter: start. R: restart.</p>
+<label>Sample level <select id="level"></select></label><button id="load">Load sample</button>
+<label>Level JSON <input id="file" type="file" accept="application/json,.json"></label>
+<label>Saved level ID <input id="saved-id" placeholder="ID returned by the API"></label><button id="load-saved">Load saved level</button>
+<p id="status" role="status">Loading</p><div id="game"></div>
+<script type="module" src="/src/main.ts"></script></body></html>

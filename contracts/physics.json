@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "gravity": 900,
+  "speed": 180,
+  "jump_velocity": -360,
+  "player_width": 20,
+  "player_height": 30,
+  "max_fall_speed": 600,
+  "fps": 60,
+  "collision": {
+    "tile_bias": 16,
+    "overlap_bias": 4,
+    "platforms": "solid_rectangles",
+    "hazards": "rectangles",
+    "world_sides": "solid",
+    "world_bottom": "death"
+  }
+}
