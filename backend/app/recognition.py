@@ -28,4 +28,4 @@ class MockRecognizer:
 
 class RealRecognizer:
     def recognize(self, image, fixture='flat'):
-        raise RecognitionUnavailable('Real recognition needs an object detector and a trained CNN checkpoint. Neither is connected yet.')
+        raise RecognitionUnavailable('Real recognition needs reviewed detector candidates and a trained CNN checkpoint. Use /api/sketch/candidates to review unclassified boxes.')

@@ -93,6 +93,8 @@ def create_app(db_path=None):
         yield
 
     app = FastAPI(title='DreamCraft API', version='0.1.0', lifespan=lifespan)
+    from sketch.api import router as sketch_router
+    app.include_router(sketch_router)
     app.add_middleware(BodyLimit)
     app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'], allow_methods=['GET', 'POST', 'PUT'], allow_headers=['Content-Type'])
 

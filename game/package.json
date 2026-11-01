@@ -8,9 +8,13 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "test:collection": "playwright test --config playwright.collection.config.ts"
   },
-  "dependencies": {"phaser": "3.90.0", "ajv": "8.17.1"},
+  "dependencies": {
+    "phaser": "3.90.0",
+    "ajv": "8.17.1"
+  },
   "devDependencies": {
     "@playwright/test": "1.56.1",
     "typescript": "5.9.3",
