@@ -4,5 +4,5 @@
     "lib": ["ES2022", "DOM"], "strict": true, "resolveJsonModule": true,
     "esModuleInterop": true, "skipLibCheck": true, "noEmit": true
   },
-  "include": ["src", "tests", "e2e", "*.ts"]
+  "include": ["src", "tests", "e2e", "collection-e2e", "*.ts"]
 }

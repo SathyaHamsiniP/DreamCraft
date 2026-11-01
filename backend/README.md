@@ -77,3 +77,11 @@ python -m pytest backend/tests -q
 ```
 
 No uploaded images, databases, datasets or secrets belong in Git.
+
+## Sketch candidates and manual review
+
+`POST /api/sketch/candidates` returns unclassified boxes from a PNG or JPEG,
+without requiring CNN weights. `POST /api/sketch/reviewed-level` validates reviewed
+labels and converts image boxes with the shared coordinate utility. It does not
+save a level or prove playability. See [the sketch tool guide](../sketch/README.md)
+for request fields, response examples, coordinate rules and the local collection UI.

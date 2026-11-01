@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DreamCraft sheet collection</title>
+<style>
+body{font:16px system-ui;max-width:1200px;margin:24px auto;padding:0 16px;background:#f5f6f8;color:#182735}button,input,select{font:inherit;margin:4px;padding:6px}button{cursor:pointer}canvas{max-width:100%;height:auto;border:1px solid #789;touch-action:none}table{border-collapse:collapse}td,th{padding:4px;text-align:left}td input[type=number]{width:75px}td img{width:80px;height:80px;object-fit:contain;background:white}fieldset{margin:16px 0}#status{white-space:pre-wrap} .scroll{overflow:auto}
+</style>
+<h1>Collect symbol crops</h1>
+<p>One class per sheet. Boxes are suggestions. Review each crop before saving. This tool does not run a CNN.</p>
+<label>Sheet image <input id="file" type="file" accept="image/png,image/jpeg"></label>
+<label>Threshold <select id="method"><option value="adaptive">Adaptive (lighting varies)</option><option value="otsu">Otsu (even lighting)</option></select></label>
+<button id="detect">Detect drawings</button>
+<fieldset><legend>Optional paper crop in oriented image pixels</legend>
+<label>X <input id="rx" type="number" value="0" min="0"></label><label>Y <input id="ry" type="number" value="0" min="0"></label>
+<label>Width <input id="rw" type="number" min="1"></label><label>Height <input id="rh" type="number" min="1"></label>
+<label><input id="useRegion" type="checkbox">Detect only inside this area</label>
+<p>Upload once to see the oriented image and its size. Crop coordinates and all boxes stay relative to that image.</p></fieldset>
+<p id="dimensions"></p><canvas id="canvas" width="1" height="1" aria-label="Draw a new bounding box on the sheet"></canvas>
+<p>Drag on the image to add a missed drawing. Change the numbers below to move or resize any box. Uncheck a crop to reject it.</p>
+<button id="add">Add box using numbers</button><button id="reject">Reject all</button>
+<div class="scroll"><table><thead><tr><th>Accept</th><th>X</th><th>Y</th><th>Width</th><th>Height</th><th>Crop preview</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+<fieldset><legend>Save accepted crops</legend>
+<label>Class <select id="label"><option>platform</option><option>coin</option><option>spike</option><option>spawn</option><option>goal</option></select></label>
+<label>Sheet ID <input id="sheet" required placeholder="writer01_sheet01" pattern="[A-Za-z0-9_-]{1,80}"></label>
+<label>Contributor code <input id="contributor" required placeholder="writer01 or anonymous01" pattern="[A-Za-z0-9_-]{1,80}"></label>
+<button id="save">Save reviewed crops</button>
+<p>Use the same contributor code for the same person. Use a new sheet ID for each sheet. Saves add samples; they do not remove earlier samples.</p>
+<a href="/collection/metadata.csv" download="metadata.csv">Export training metadata.csv</a>
+<p>Save the downloaded CSV in the dataset folder printed by the launch command. It refers to crops in that folder.</p></fieldset>
+<p id="status" role="status"></p>
+<script>
+const $=id=>document.getElementById(id), canvas=$('canvas'), ctx=canvas.getContext('2d');
+let image=null, boxes=[], sourceFile=null, start=null;
+const message=text=>$('status').textContent=text;
+function valid(b){return image && ['x','y','width','height'].every(k=>Number.isInteger(b[k])) && b.x>=0 && b.y>=0 && b.width>0 && b.height>0 && b.x+b.width<=image.width && b.y+b.height<=image.height;}
+function draw(){if(!image)return;ctx.drawImage(image,0,0);boxes.forEach((b,i)=>{ctx.strokeStyle=b.accept?'#d00000':'#777';ctx.lineWidth=3;ctx.strokeRect(b.x,b.y,b.width,b.height);ctx.fillStyle=ctx.strokeStyle;ctx.font='20px sans-serif';ctx.fillText(i+1,b.x,b.y+20);});}
+function render(){ $('rows').replaceChildren(); boxes.forEach((b,i)=>{const row=document.createElement('tr');
+ const accept=document.createElement('input');accept.type='checkbox';accept.checked=b.accept;accept.onchange=()=>{b.accept=accept.checked;draw();};const cell=document.createElement('td');cell.append(accept);row.append(cell);
+ for(const key of ['x','y','width','height']){const td=document.createElement('td'), input=document.createElement('input');input.type='number';input.value=b[key];input.setAttribute('aria-label',`Box ${i+1} ${key === "x" || key === "y" ? key.toUpperCase() : key}`);input.onchange=()=>{const previous=b[key];b[key]=Number(input.value);if(!valid(b)){b[key]=previous;message('Box must stay inside the image and use whole pixels.');}render();};td.append(input);row.append(td);}
+ const td=document.createElement('td'), thumb=document.createElement('canvas');if(valid(b)){thumb.width=b.width;thumb.height=b.height;thumb.getContext('2d').drawImage(image,b.x,b.y,b.width,b.height,0,0,b.width,b.height);const img=document.createElement('img');img.src=thumb.toDataURL();img.alt=`Crop ${i+1}`;td.append(img);}row.append(td);
+ const last=document.createElement('td'), remove=document.createElement('button');remove.textContent='Remove';remove.onclick=()=>{boxes.splice(i,1);render();};last.append(remove);row.append(last);$('rows').append(row);});draw();}
+async function request(url,form){const response=await fetch(url,{method:'POST',body:form});const data=await response.json();if(!response.ok)throw Error(data.detail||data.error?.message||'Request failed');return data;}
+$('file').onchange=()=>{sourceFile=null;image=null;boxes=[];ctx.clearRect(0,0,canvas.width,canvas.height);$('rows').replaceChildren();$('useRegion').checked=false;message('Click Detect drawings to load the new sheet.');};
+$('detect').onclick=async()=>{try{const file=$('file').files[0];if(!file)throw Error('Choose a PNG or JPEG sheet.');const form=new FormData();form.append('file',file);form.append('method',$('method').value);form.append('region',JSON.stringify($('useRegion').checked?{x:Number($('rx').value),y:Number($('ry').value),width:Number($('rw').value),height:Number($('rh').value)}:null));message('Detecting…');const result=await request('/collection/detect',form);const loaded=new Image();loaded.src=result.image;await loaded.decode();image=loaded;sourceFile=file;canvas.width=result.width;canvas.height=result.height;boxes=result.boxes.map(b=>({...b,accept:true}));$('dimensions').textContent=`Oriented image: ${result.width} × ${result.height} pixels`;if(!$('useRegion').checked){$('rw').value=result.width;$('rh').value=result.height;}render();message(`${boxes.length} candidates. Review every accepted crop.`);}catch(error){message(error.message);}};
+function point(e){const r=canvas.getBoundingClientRect();return{x:Math.max(0,Math.min(canvas.width,Math.round((e.clientX-r.left)*canvas.width/r.width))),y:Math.max(0,Math.min(canvas.height,Math.round((e.clientY-r.top)*canvas.height/r.height)))};}
+canvas.onpointerdown=e=>{if(!image)return;start=point(e);canvas.setPointerCapture(e.pointerId);};
+canvas.onpointerup=e=>{if(!start)return;const end=point(e),b={x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),width:Math.abs(end.x-start.x),height:Math.abs(end.y-start.y),accept:true};start=null;if(valid(b)){boxes.push(b);render();}};
+canvas.onpointercancel=()=>start=null;
+$('add').onclick=()=>{if(!image)return;boxes.push({x:0,y:0,width:Math.min(64,image.width),height:Math.min(64,image.height),accept:true});render();};
+$('reject').onclick=()=>{boxes.forEach(b=>b.accept=false);render();};
+$('save').onclick=async()=>{try{if(!sourceFile)throw Error('Load and review a sheet first.');const accepted=boxes.filter(b=>b.accept);if(!accepted.length||accepted.some(b=>!valid(b)))throw Error('Accept at least one valid crop.');const form=new FormData();form.append('file',sourceFile);form.append('sheet_id',$('sheet').value);form.append('contributor_id',$('contributor').value);form.append('label',$('label').value);form.append('boxes',JSON.stringify(accepted));const result=await request('/collection/save',form);message(`Saved ${result.saved} crops. Skipped ${result.duplicates_skipped} exact prepared duplicates.`);}catch(error){message(error.message);}};
+</script></html>
