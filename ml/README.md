@@ -294,3 +294,8 @@ Keep local images under `ml/data/` and generated results under `ml/runs/`. Both 
 ## Work still needed
 
 The CPU workflow has passed automated tests and a short synthetic training run. Real handwriting performance still needs to be measured after labeled images are collected. GPU execution, confidence calibration and handling unknown symbols also need further work. Full-sheet object localisation and the playable game are outside this module’s current scope.
+
+Full-sheet candidate detection and a local crop collection interface are now in
+[the sketch tools](../sketch/README.md). They keep detection separate from this
+classifier and export the same CSV metadata format. The earlier module scope
+statements above refer to `ml/` itself.

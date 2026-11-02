@@ -122,3 +122,13 @@ def test_unknown_route_and_method_errors(client):
     for response in [client.get('/api/not-here'), client.delete('/api/levels')]:
         assert response.status_code in (404, 405)
         assert set(response.json()) == {'error'}
+
+
+def test_candidate_route_does_not_create_levels(client):
+    data = image_bytes(size=(600, 400))
+    response = client.post('/api/sketch/candidates', files={'file': ('blank.png', data)})
+    assert response.status_code == 200
+    assert response.json()['candidates'] == []
+    assert response.json()['model_status'] == 'unavailable'
+    assert client.get('/api/levels').json() == []
+    assert client.post('/api/sketch/reviewed-level', json={}).status_code == 422

@@ -2,7 +2,7 @@ name: Game and backend tests
 
 on:
   push:
-    branches: [main, feature/game-backend-playability]
+    branches: [main, feature/game-backend-playability, feature/sketch-detection-data-tools]
   pull_request:
     branches: [main]
 

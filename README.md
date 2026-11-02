@@ -131,3 +131,9 @@ For real recognition, the adapter should use OpenCV to locate boxes, send each c
 Playability search is approximate and bounded. It can miss real routes, and arbitrary returned routes still need Phaser replay. Only a limited height-bound case is reported as proven unreachable. Moving platforms, slopes and extra jumps are not supported. GPU training and real handwriting accuracy remain unverified. The production game build currently reports a large-bundle warning because it includes Phaser.
 
 SQLite data lives under `backend/data/` by default. Keep ML images in `ml/data/` and ML outputs in `ml/runs/`. Databases, uploads, checkpoints, virtual environments, `node_modules`, build files and test reports are ignored by Git. Do not commit datasets, weights or secrets.
+
+## Sketch detection and sheet collection
+
+The [sketch tool guide](sketch/README.md) explains how to detect possible symbols,
+correct boxes, collect labeled crops and export training metadata. It works without
+a trained checkpoint. Real handwriting and real-photo accuracy are still untested.
