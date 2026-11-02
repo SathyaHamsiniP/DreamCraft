@@ -96,7 +96,7 @@ def create_app(db_path=None):
     from sketch.api import router as sketch_router
     app.include_router(sketch_router)
     app.add_middleware(BodyLimit)
-    app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'], allow_methods=['GET', 'POST', 'PUT'], allow_headers=['Content-Type'])
+    app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'], allow_methods=['GET', 'POST', 'PUT'], allow_headers=['Content-Type'])
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request, exc):

@@ -1,4 +1,7 @@
 """Candidate API shared by the game backend and local collection app."""
+import base64
+import io
+
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, ConfigDict
 
@@ -41,4 +44,23 @@ def build_level(body: ReviewedObjects):
     try:
         return {'level': reviewed_level(**body.model_dump()), 'playability_checked': False}
     except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.post('/api/sketch/preview')
+async def oriented_preview(file: UploadFile = File(...)):
+    """Return the same oriented pixels used by candidate detection."""
+    try:
+        data = await file.read(MAX_BYTES + 1)
+    finally:
+        await file.close()
+    if len(data) > MAX_BYTES:
+        raise HTTPException(413, 'Image must be at most 5 MiB')
+    try:
+        image = load_image(data)
+        buffer = io.BytesIO()
+        image.save(buffer, format='PNG')
+        return {'width': image.width, 'height': image.height,
+                'url': 'data:image/png;base64,' + base64.b64encode(buffer.getvalue()).decode()}
+    except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc

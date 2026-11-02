@@ -132,3 +132,25 @@ def test_candidate_route_does_not_create_levels(client):
     assert response.json()['model_status'] == 'unavailable'
     assert client.get('/api/levels').json() == []
     assert client.post('/api/sketch/reviewed-level', json={}).status_code == 422
+
+
+def test_studio_preview_and_cors(client):
+    import base64
+    original = Image.new('RGB', (120, 80), 'white')
+    exif = Image.Exif()
+    exif[274] = 6
+    data = io.BytesIO()
+    original.save(data, 'JPEG', exif=exif)
+    response = client.post('/api/sketch/preview', files={'file': ('sheet.jpg', data.getvalue())})
+    assert response.status_code == 200
+    result = response.json()
+    with Image.open(io.BytesIO(base64.b64decode(result['url'].split(',')[1]))) as preview:
+        assert preview.size == (result['width'], result['height']) == (80, 120)
+        assert preview.getexif().get(274) is None
+    detection = client.post('/api/sketch/candidates', files={'file': ('sheet.jpg', data.getvalue())}).json()
+    assert detection['image']['width'] == result['width']
+    assert detection['image']['height'] == result['height']
+    assert client.post('/api/sketch/preview', files={'file': ('bad.png', b'bad')}).status_code == 422
+    assert client.post('/api/sketch/preview', files={'file': ('large.png', b'x' * (MAX_FILE_BYTES+1))}).status_code == 413
+    allowed = client.options('/api/sketch/preview', headers={'Origin': 'http://localhost:5174', 'Access-Control-Request-Method': 'POST'})
+    assert allowed.headers['access-control-allow-origin'] == 'http://localhost:5174'

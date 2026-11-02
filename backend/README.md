@@ -85,3 +85,10 @@ without requiring CNN weights. `POST /api/sketch/reviewed-level` validates revie
 labels and converts image boxes with the shared coordinate utility. It does not
 save a level or prove playability. See [the sketch tool guide](../sketch/README.md)
 for request fields, response examples, coordinate rules and the local collection UI.
+
+The React studio runs on port 5174; its localhost and 127.0.0.1 origins are allowed.
+`POST /api/sketch/preview` accepts the same multipart PNG/JPEG input and limits as
+candidate detection. It returns `{url, width, height}`, where `url` is a PNG data
+URL with EXIF orientation applied and transparency placed on white. The studio
+uses this image so its editor and detector share the same coordinates. No preview
+files or uploads are stored. See [the frontend guide](../frontend/README.md).
