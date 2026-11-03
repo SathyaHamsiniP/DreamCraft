@@ -27,9 +27,30 @@ Open http://localhost:5174. The standalone game still uses port 5173. The backen
 allows only the existing game origins and the local studio origins on port 5174.
 It does not use unrestricted CORS. Use the same hostname consistently when testing.
 
-The default backend URL is `http://127.0.0.1:8000`. To change it, copy
-`frontend/.env.example` to `frontend/.env.local`, set `VITE_API_URL`, and restart
-Vite. Frontend environment values are public. Do not put secrets in them.
+By default, the browser sends `/api` requests through Vite to the backend on
+`http://127.0.0.1:8000`. This works locally and in Codespaces without an env file.
+If you already created `frontend/.env.local` with a forwarded backend URL, remove
+that `VITE_API_URL` line or leave its value blank, then restart Vite.
+
+To use another local backend port, set `DREAMCRAFT_API_PROXY_TARGET` in
+`frontend/.env.local`, for example `http://127.0.0.1:8002`, then restart Vite.
+`VITE_API_URL` remains an optional direct backend URL for other hosting setups;
+that requires the backend to allow your exact frontend origin. Values starting
+with `VITE_` are public browser settings. Do not put secrets in them.
+
+### GitHub Codespaces
+
+Open this branch in Codespaces. Install Python 3.12 and Node 22.12+ or Node 24
+if the Codespace does not already provide them, then run the setup commands above.
+Start the backend on port 8000 and the frontend on 5174. In the Codespaces Ports
+tab, open the forwarded address for **5174**. Keep it private. Port 8000 does not
+need to be exposed to the browser: Vite connects to it inside the Codespace.
+
+There is no forwarded backend URL to copy and no CORS change to make. Vite allows
+the exact frontend hostname from `CODESPACE_NAME` and
+`GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN`. It does not allow all hostnames.
+Actual hosted Codespaces access still needs checking in a signed-in Codespace;
+local browser tests cover the same frontend-to-backend proxy path.
 
 Install game dependencies even if only using the studio: the studio imports the
 shared engine and contracts directly from `game/src/`. Vite deduplicates Phaser,
@@ -141,7 +162,9 @@ npm run build --prefix frontend
 ```
 
 The production output is `frontend/dist/`. Serve it with SPA fallback to
-`index.html` for routes like `/studio` and `/levels`. Set `VITE_API_URL` before
+`index.html` for routes like `/studio` and `/levels`. The Vite development proxy
+is not part of the production build. Route `/api` to FastAPI in your hosting
+server, or set `VITE_API_URL` to a backend that allows your frontend origin before
 building. The backend stays a separate process; this change does not deploy or
 publish the app.
 
@@ -206,7 +229,7 @@ Local checks for this change passed:
 | Standalone game unit tests | 27 passed |
 | Standalone gameplay browser tests | 16 passed |
 | Collection browser test | 1 passed |
-| React unit and component tests | 18 passed |
+| React unit and component tests | 20 passed |
 | React full workflow browser tests | 7 passed |
 | Type checks and production builds for both apps | Passed |
 | Frontend install from lockfile with `npm ci` | Passed |
