@@ -94,5 +94,9 @@
   {
     "file": "edge-vertical-low.json",
     "valid": true
+  },
+  {
+    "file": "sky-trail.json",
+    "valid": true
   }
 ]

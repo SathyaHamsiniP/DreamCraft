@@ -72,3 +72,22 @@ If Playwright downloads are blocked but Chromium is already installed, use `CHRO
 Browser tests save replay position comparisons as test attachments. They cover movement, jump limits, collisions, coins, hazards, falling, victory, restart, invalid JSON, level reloads, mock uploads and saved API levels. Seven returned checker paths are replayed, including the multi-platform sample. `dist/`, browser reports and test outputs are ignored by Git.
 
 The Phaser bundle is large enough to produce Vite's chunk-size warning. It builds successfully; no asset packs or paid services are required.
+
+## Game presentation and the default sample
+
+The default sample is now `sky-trail`: a gap, a raised ledge, a spike and four
+bonus coins. Use Left/Right or A/D to move, Space/W/Up to jump, and touch the
+purple finish flag to win. Coins are optional and each adds one point. Missing
+coins does not stop a win. The older flat sample stays available for walking
+practice and regression tests.
+
+`src/art.ts` draws the sky, platforms, gold coins, blue explorer and finish marker.
+Those drawings have no physics bodies. The engine still uses the existing shared
+rectangles and movement rules for collisions. Collected coin art is hidden with
+its collider, and all art resets on restart. No images, sounds or external asset
+services are needed.
+
+The checker finds a route for `sky-trail`; the browser suite replays that exact
+route in Phaser and compares positions. This proves the supplied sample route
+works, not that every uploaded sketch is playable. Generated and saved levels use
+the same renderer, with positions and sizes taken from their level JSON.

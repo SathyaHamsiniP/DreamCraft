@@ -225,12 +225,12 @@ Local checks for this change passed:
 
 | Check | Result |
 | --- | --- |
-| Python ML, contracts, backend, sketch and playability | 124 passed |
-| Standalone game unit tests | 27 passed |
-| Standalone gameplay browser tests | 16 passed |
+| Python ML, contracts, backend, sketch and playability | 125 passed |
+| Standalone game unit tests | 28 passed |
+| Standalone gameplay browser tests | 17 passed |
 | Collection browser test | 1 passed |
-| React unit and component tests | 20 passed |
-| React full workflow browser tests | 7 passed |
+| React unit and component tests | 22 passed |
+| React full workflow browser tests | 8 passed |
 | Type checks and production builds for both apps | Passed |
 | Frontend install from lockfile with `npm ci` | Passed |
 
@@ -240,3 +240,16 @@ synthetic; no real handwriting accuracy was measured. Builds report a large Phas
 bundle warning. The game is loaded in a separate chunk. Python dependencies also
 report deprecation warnings. Hosted Actions results were not available through the
 blocked GitHub API.
+
+## Clearer sample games
+
+Try Sample Level now opens Sky trail: jump across a gap, collect optional coins,
+avoid a spike and reach the finish flag. Walking practice remains available in
+the sample menu. The game shows an objective before play, a bonus coin total when
+coins exist, instructions, a retry message after a loss, and a completion message
+with the collected coin count. Coins are optional; they do not unlock the goal.
+
+All reviewed sketch levels and saved levels share the new explorer, platform,
+coin and finish artwork. Their layout still comes from level JSON. Old saved
+flat levels stay flat; choose Sky trail to try the new sample layout. Physics,
+coordinate conversion, win rules and the level schema are unchanged.
