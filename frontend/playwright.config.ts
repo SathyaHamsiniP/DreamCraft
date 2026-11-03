@@ -24,7 +24,10 @@ export default defineConfig({
     {
       command: "npm run dev -- --strictPort",
       url: "http://127.0.0.1:5174",
-      env: { VITE_API_URL: "http://127.0.0.1:8002" },
+      env: {
+        VITE_API_URL: "",
+        DREAMCRAFT_API_PROXY_TARGET: "http://127.0.0.1:8002",
+      },
       reuseExistingServer: false,
     },
     {
