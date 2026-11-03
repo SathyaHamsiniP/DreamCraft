@@ -2,7 +2,7 @@ name: ML tests
 
 on:
   push:
-    branches: [main, feature/ml-pipeline, feature/sketch-detection-data-tools]
+    branches: [main, feature/ml-pipeline, feature/sketch-detection-data-tools, feature/react-studio]
   pull_request:
     branches: [main]
 

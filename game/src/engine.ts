@@ -8,7 +8,7 @@ export interface GameHandle {
   loadLevel(value: unknown): void; restart(): void; start(): void;
   snapshot(): Snapshot | null; step(frames: number): void; destroy(): void;
 }
-interface MountOptions { onEvent?: (event: GameEvent) => void; manual?: boolean }
+interface MountOptions { onEvent?: (event: GameEvent) => void; manual?: boolean; keyboardTarget?: HTMLElement }
 
 export function mountGame(parent: HTMLElement, initial: unknown, options: MountOptions = {}): GameHandle {
   let current = parseLevel(initial);
@@ -32,7 +32,7 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
       const goals = this.physics.add.staticGroup();
       for (const o of current.objects) {
         if (o.type === 'spawn') continue;
-        const colors = { platform: 0x40556b, coin: 0xf1bd32, spike: 0xc63c3c, goal: 0x258d5b };
+        const colors = { platform: 0x40556b, coin: 0xf1bd32, spike: 0xc63c3c, goal: 0x8151ba };
         const shape = o.type === 'spike'
           ? this.add.triangle(o.x + o.width / 2, o.y + o.height / 2, 0, o.height, o.width / 2, 0, o.width, o.height, colors.spike)
           : this.add.rectangle(o.x + o.width / 2, o.y + o.height / 2, o.width, o.height, colors[o.type]);
@@ -94,8 +94,11 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
     type: Phaser.CANVAS, parent, width: 960, height: 540, backgroundColor: '#e8eff5',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: P.gravity }, fps: P.fps, fixedStep: true, customUpdate: true, overlapBias: P.collision.overlap_bias, tileBias: P.collision.tile_bias } },
+    input: { keyboard: { target: options.keyboardTarget || window } },
     scene: [scene], audio: { noAudio: true },
   });
+  const releaseKeys = () => scene.input?.keyboard?.resetKeys();
+  options.keyboardTarget?.addEventListener('blur', releaseKeys);
   function ready() { return alive && !pending && scene.sys.isActive() && Boolean(scene.player); }
   return {
     loadLevel(value) { const next = parseLevel(value); if (!alive) throw new Error('Game has been destroyed'); current = next; if (ready()) { pending = true; scene.scene.restart(); } },
@@ -106,6 +109,6 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
       if (!Number.isInteger(frames) || frames < 0 || frames > 3600) throw new Error('Step count must be between 0 and 3600');
       if (ready()) for (let i = 0; i < frames; i++) scene.fixedStep();
     },
-    destroy() { if (alive) { alive = false; game.destroy(true); } },
+    destroy() { if (alive) { alive = false; options.keyboardTarget?.removeEventListener('blur', releaseKeys); game.destroy(true); } },
   };
 }

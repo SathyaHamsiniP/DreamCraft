@@ -137,3 +137,11 @@ SQLite data lives under `backend/data/` by default. Keep ML images in `ml/data/`
 The [sketch tool guide](sketch/README.md) explains how to detect possible symbols,
 correct boxes, collect labeled crops and export training metadata. It works without
 a trained checkpoint. Real handwriting and real-photo accuracy are still untested.
+
+## React studio
+
+The [React studio](frontend/README.md) provides Home, Studio, My Levels and Help.
+It connects OpenCV candidate detection, manual object review, the existing Phaser
+game, SQLite saves and playability checking. It supports sample games and manually
+reviewed sketches without trained weights. Run the backend on port 8000 and the
+studio on port 5174. See the guide for setup and full workflow tests.
