@@ -1,88 +1,105 @@
 import Phaser from "phaser";
 import type { LevelObject } from "./contracts";
 
-// Artwork is separate from the rectangles used by physics and the checker.
+// Decorative light can extend past an object. Solid artwork follows its collision box.
 export function drawBackdrop(scene: Phaser.Scene) {
   const sky = scene.add.graphics().setScrollFactor(0).setDepth(-20);
-  sky.fillStyle(0xdff3ff).fillRect(0, 0, 960, 540);
-  sky.fillStyle(0xf2fbff).fillRect(0, 250, 960, 290);
-  sky.fillStyle(0xffdf83).fillCircle(795, 92, 38);
-  sky.fillStyle(0xffedb8, 0.5).fillCircle(795, 92, 50);
-  for (const [x, y] of [
-    [100, 95],
-    [410, 150],
-    [650, 65],
-  ]) {
-    sky.fillStyle(0xffffff, 0.9);
-    sky.fillRoundedRect(x, y, 110, 24, 12);
-    sky.fillCircle(x + 30, y, 21);
-    sky.fillCircle(x + 65, y - 7, 28);
+  const bands = [0x0b122c, 0x101936, 0x171f42, 0x20264c, 0x2d3157, 0x3c3860];
+  bands.forEach((color, i) => sky.fillStyle(color).fillRect(0, i*90, 960, 91));
+  for (let i = 0; i < 65; i++) {
+    const x = (i*137+29)%960, y = (i*67+17)%300;
+    sky.fillStyle(i%4 ? 0xb3ddeb : 0xf6e7b4, i%3 ? .55 : .9).fillCircle(x, y, i%7 ? 1 : 1.8);
   }
-  sky.fillStyle(0xd3e8e9).fillEllipse(160, 530, 650, 450);
-  sky.fillStyle(0xc3dfe0).fillEllipse(720, 550, 750, 430);
-  sky.fillStyle(0xafced2).fillEllipse(310, 620, 780, 420);
-  sky.fillStyle(0x8ab3c0).fillRect(0, 520, 960, 20);
+  sky.fillStyle(0x9e8be2, .08).fillCircle(782, 112, 78);
+  sky.lineStyle(1, 0xbcb0fc, .25).strokeEllipse(782, 112, 175, 55);
+  sky.fillStyle(0xe7dcff).fillCircle(782, 112, 43);
+  sky.fillStyle(0xb1a2d8).fillCircle(796, 98, 6).fillCircle(767, 125, 10).fillCircle(789, 131, 4);
+  for (let i = 0; i < 9; i++) {
+    const x = i*140-80, top = 235+(i*37)%110;
+    sky.fillStyle(i%2 ? 0x222e4c : 0x263851).fillTriangle(x, 455, x+90, top, x+210, 455);
+    sky.lineStyle(1, 0x69949e, .25).lineBetween(x+90, top, x+120, top+65);
+  }
+  sky.fillStyle(0x142a3d).fillRect(0, 440, 960, 100);
+  sky.lineStyle(1, 0x48b8ac, .12);
+  for (let x = -600; x < 1500; x += 100) sky.lineBetween(480, 407, x, 540);
+  for (let y = 450; y < 540; y += 22) sky.lineBetween(0, y, 960, y);
+  for (let i = 0; i < 18; i++) {
+    const x = i*61, h = 18+(i*23)%58;
+    sky.fillStyle(0x102133).fillRect(x, 440-h, 22, h);
+    sky.fillStyle(0x6ee7ce, .3).fillRect(x+5, 449-h, 3, 5);
+  }
 }
 
 export function drawObject(scene: Phaser.Scene, object: LevelObject) {
   const { width: w, height: h, type } = object;
   const art = scene.add.container(object.x, object.y);
-  const g = scene.add.graphics();
-  art.add(g);
+  const g = scene.add.graphics(); art.add(g);
   if (type === "platform") {
-    g.fillStyle(0x344d6a).fillRoundedRect(0, 0, w, h, Math.min(4, h / 4));
-    g.fillStyle(0x547493).fillRect(0, 0, w, Math.min(7, h));
-    g.fillStyle(0x7ad5c3).fillRect(0, 0, w, Math.min(3, h));
-    g.lineStyle(1, 0x89a5b8, 0.35);
-    for (let x = 20; x < w; x += 38)
-      g.lineBetween(x, Math.min(10, h), x + 10, Math.min(10, h));
+    g.fillStyle(0x142b3c).fillRoundedRect(0, 0, w, h, Math.min(4, h/4));
+    g.fillStyle(0x365269).fillRect(0, 0, w, Math.min(8, h));
+    g.fillStyle(0x7ef2d1).fillRect(0, 0, w, Math.min(3, h));
+    g.lineStyle(1, 0x89aec0, .45).lineBetween(0, Math.min(9,h), w, Math.min(9,h));
+    for (let x = 12; x < w-8; x += 42) {
+      g.fillStyle(0x253f52).fillRect(x, Math.min(14,h*.4), Math.min(25,w-x), h*.45);
+      g.fillStyle(0x78919f).fillCircle(x, Math.min(6,h*.5), 1.2);
+      g.lineStyle(1, 0x476476).lineBetween(x, h*.65, Math.min(w,x+10), h-3);
+    }
   } else if (type === "coin") {
-    g.fillStyle(0xffe8a0, 0.3).fillEllipse(w / 2, h / 2, w + 8, h + 8);
-    g.fillStyle(0xffce45).fillEllipse(w / 2, h / 2, w, h);
-    g.lineStyle(2, 0xa66a14).strokeEllipse(w / 2, h / 2, w, h);
-    g.lineStyle(2, 0xfff1a1).lineBetween(w * 0.4, h * 0.25, w * 0.4, h * 0.7);
+    const glow = scene.add.graphics().fillStyle(0xffdd68, .2).fillEllipse(w/2,h/2,w+12,h+12);
+    art.addAt(glow, 0);
+    g.fillStyle(0xa86617).fillEllipse(w/2,h/2,w,h);
+    g.fillStyle(0xffd55a).fillEllipse(w/2,h/2,w*.84,h*.87);
+    g.lineStyle(1.5,0xfff1ba).strokeEllipse(w/2,h/2,w*.68,h*.72);
+    g.fillStyle(0xa97221).fillPoints([{x:w*.5,y:h*.24},{x:w*.67,y:h*.5},{x:w*.5,y:h*.76},{x:w*.33,y:h*.5}],true);
+    scene.tweens.add({ targets: glow, alpha: .35, duration: 800, yoyo: true, repeat: -1 });
   } else if (type === "spike") {
-    g.fillStyle(0xe55561).fillTriangle(0, h, w / 2, 0, w, h);
-    g.lineStyle(2, 0x953541).strokeTriangle(0, h, w / 2, 0, w, h);
-    g.lineStyle(2, 0xffc2bc).lineBetween(w / 2, h * 0.25, w * 0.72, h * 0.8);
-    g.fillStyle(0x953541).fillRect(0, Math.max(0, h - 3), w, Math.min(3, h));
+    g.fillStyle(0xf04d57,.15).fillRoundedRect(-3,-3,w+6,h+6,5);
+    // A low armored mound with teeth, rather than an oversized triangle.
+    g.fillStyle(0x4b2033).fillRoundedRect(0,h*.3,w,h*.7,Math.min(5,h*.2));
+    const teeth = Math.max(3, Math.round(w/12));
+    for (let i = 0; i < teeth; i++) {
+      const x = w*i/teeth, tw = w/teeth;
+      const tip = i%2 ? h*.08 : 0;
+      g.fillStyle(i%2 ? 0xffb069 : 0xf97065).fillTriangle(x,h*.55,x+tw*.5,tip,x+tw,h*.55);
+      g.lineStyle(1,0xffdb9a).lineBetween(x+tw*.5,tip+2,x+tw*.75,h*.4);
+    }
+    g.fillStyle(0xe44b50).fillRoundedRect(1,h*.46,w-2,h*.43,3);
+    g.fillStyle(0x291c32).fillRect(0,h*.8,w,h*.2);
+    for (let x = 3; x < w-3; x += 9) g.fillStyle(0xf8c36a).fillRect(x,h*.84,4,h*.1);
+    g.fillStyle(0xffecbb).fillRect(w*.35,h*.55,Math.max(2,w*.1),2).fillRect(w*.61,h*.55,Math.max(2,w*.1),2);
   } else if (type === "goal") {
-    g.fillStyle(0x9673dc, 0.18).fillRoundedRect(-5, -5, w + 10, h + 10, 6);
-    g.fillStyle(0x8051c4).fillRoundedRect(0, 0, w, h, Math.min(5, w / 4));
-    g.fillStyle(0xcdb3f4).fillRoundedRect(
-      w * 0.2,
-      h * 0.15,
-      w * 0.6,
-      h * 0.85,
-      Math.min(4, w / 5),
-    );
-    g.lineStyle(2, 0x593890).lineBetween(w / 2, -26, w / 2, 0);
-    g.fillStyle(0x8051c4).fillTriangle(w / 2, -26, w / 2 + 21, -19, w / 2, -12);
-    const label = scene.add
-      .text(w / 2, -43, "FINISH", {
-        fontFamily: "sans-serif",
-        fontSize: "11px",
-        fontStyle: "bold",
-        color: "#593890",
-        backgroundColor: "#ffffff",
-      })
-      .setOrigin(0.5, 0)
-      .setPadding(4, 2);
-    art.add(label);
+    const glow = scene.add.graphics().fillStyle(0xa478ff,.18).fillEllipse(w/2,h/2,w+18,h+14);
+    art.addAt(glow,0);
+    g.fillStyle(0x3e2c6f).fillRoundedRect(0,0,w,h,Math.min(w/2,12));
+    g.lineStyle(3,0xba98ff).strokeRoundedRect(2,2,Math.max(1,w-4),Math.max(1,h-4),Math.min(w/2,10));
+    g.fillStyle(0x704dba).fillRoundedRect(w*.2,h*.13,w*.6,h*.75,8);
+    g.lineStyle(1,0x86fff0,.8);
+    for(let i=0;i<3;i++) g.strokeEllipse(w/2,h*(.3+i*.2),w*(.35+i*.08),h*.14);
+    g.fillStyle(0x67e6d5).fillRect(w*.2,h*.9,w*.6,Math.max(2,h*.08));
+    scene.tweens.add({ targets: glow, alpha: .3, duration: 1100, yoyo: true, repeat: -1 });
+    art.add(scene.add.text(w/2,-24,"FINISH",{fontFamily:'monospace',fontSize:'10px',fontStyle:'bold',color:'#dfd3ff',backgroundColor:'#251e49'}).setOrigin(.5,0).setPadding(4,3));
   }
   return art;
 }
 
+export function paintRunner(g: Phaser.GameObjects.Graphics, w: number, h: number, ticks=0, moving=false, grounded=true) {
+  g.clear();
+  const sx=w/20, sy=h/30;
+  const rect=(x:number,y:number,rw:number,rh:number,c:number) => g.fillStyle(c).fillRect(x*sx,y*sy,rw*sx,rh*sy);
+  const stride = grounded && moving ? Math.floor(ticks/6)%2 : 0;
+  // Original tiny lizard runner. All solid parts stay within the player rectangle.
+  rect(7,3,12,9,0x102f3d); rect(8,2,10,10,0x6fe2b5); rect(15,7,5,6,0x6fe2b5);
+  rect(15,4,3,3,0xf5fff1); rect(17,5,1,2,0x102f3d); rect(17,11,3,1,0x102f3d);
+  rect(6,12,10,11,0x102f3d); rect(7,12,8,12,0x42bf9b); rect(11,15,4,7,0xb2f1bd);
+  rect(2,17,6,5,0x42bf9b); rect(0,15,3,4,0x6fe2b5); rect(4,15,3,4,0x42bf9b);
+  rect(5,9,3,3,0x94ebba); rect(4,13,3,3,0x94ebba);
+  rect(7,12,9,3,0xffbd73); rect(3,13,5,2,0xef755d);
+  rect(14,16,4,3,0x278975);
+  const ly=grounded ? 24+stride*2 : 23, ry=grounded ? 26-stride*2 : 25;
+  rect(7,ly,3,30-ly,0x267b70); rect(6,28,5,2,0xe5e8c7);
+  rect(12,ry,3,30-ry,0x267b70); rect(12,28,5,2,0xe5e8c7);
+}
+
 export function drawPlayer(scene: Phaser.Scene, width: number, height: number) {
-  const g = scene.add.graphics().setDepth(5);
-  g.fillStyle(0x1c437d).fillRoundedRect(0, 0, width, height, 4);
-  g.fillStyle(0x3c8afa).fillRoundedRect(1, 1, width - 2, height - 4, 4);
-  g.fillStyle(0xe6f4ff).fillRoundedRect(3, 5, width - 6, 10, 3);
-  g.fillStyle(0x163452)
-    .fillRect(6, 8, 2, 4)
-    .fillRect(width - 8, 8, 2, 4);
-  g.fillStyle(0x163452)
-    .fillRect(1, height - 4, 6, 4)
-    .fillRect(width - 7, height - 4, 6, 4);
-  return g;
+  const g=scene.add.graphics().setDepth(5); paintRunner(g,width,height); return g;
 }

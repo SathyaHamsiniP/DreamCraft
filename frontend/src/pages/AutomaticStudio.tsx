@@ -99,7 +99,7 @@ export function AutomaticStudio() {
       <details className="card"><summary>Upload another drawing</summary><Upload busy={!!busy} onFile={file => void upload(file)} /></details>
     </>}
     {!verified && <section className="card"><Upload busy={!!busy} onFile={file => void upload(file)} />
-      <label className="check-label"><input type="checkbox" checked={repairs} disabled={!!busy} onChange={e => setRepairs(e.target.checked)} />Allow small repairs: align spawn/goal by up to 18 units and try one short bridge. Show every change.</label>
+      <label className="check-label"><input type="checkbox" checked={repairs} disabled={!!busy} onChange={e => setRepairs(e.target.checked)} />Allow small repairs: align spawn/goal, fit supported hazards to one jump, and try up to two short bridges. Show every change.</label>
       <button className="primary" disabled={!source || !!busy} onClick={() => void generate()}>Generate My Game</button>
       <Link className="button" to="/studio?sample=trail">Try a sample game →</Link>
     </section>}

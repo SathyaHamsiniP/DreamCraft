@@ -111,10 +111,10 @@ export function GamePlayer({ level }: { level: Level }) {
                 {event.state === "completed"
                   ? totalCoins
                     ? `You collected ${event.score} of ${totalCoins} bonus coins. Coins are optional — reaching the flag wins the level.`
-                    : "You reached the purple finish flag. Nice work!"
+                    : "You reached the glowing finish portal. Nice work!"
                   : event.state === "dead"
                     ? "Avoid the red spikes and jump across gaps. Restart to try again."
-                    : "Move right, jump between platforms, and touch the purple finish flag."}
+                    : "Move right, jump between platforms, and touch the glowing finish portal."}
               </p>
               {event.state === "ready" && (
                 <small>Press Start game below, then use ← → and Space.</small>
@@ -132,7 +132,7 @@ export function GamePlayer({ level }: { level: Level }) {
         <div>
           <b>01 · Move & jump</b>
           <span>
-            You are the blue explorer. ← → or A / D moves. Space, W or ↑ jumps.
+            You are the teal lizard runner. ← → or A / D moves. Space, W or ↑ jumps.
           </span>
         </div>
         <div>
@@ -142,7 +142,7 @@ export function GamePlayer({ level }: { level: Level }) {
         <div>
           <b>03 · Find the finish</b>
           <span>
-            Touch the purple flag to win.
+            Touch the purple portal to win.
             {totalCoins > 0
               ? " Gold coins give 1 bonus point each; you do not need them to finish."
               : " This level has no coins."}

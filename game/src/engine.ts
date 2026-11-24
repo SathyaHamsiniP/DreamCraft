@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { PHYSICS as P, parseLevel } from './contracts';
-import { drawBackdrop, drawObject, drawPlayer } from './art';
+import { drawBackdrop, drawObject, drawPlayer, paintRunner } from './art';
 
 export type GameState = 'ready' | 'playing' | 'dead' | 'completed';
 export interface GameEvent { type: 'state' | 'coin'; state: GameState; score: number }
@@ -22,13 +22,13 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
     keys!: Record<string, Phaser.Input.Keyboard.Key>;
     state: GameState = 'ready';
     score = 0; ticks = 0; accumulator = 0; jumpHeld = false; coyote = 0; jumpBuffer = 0;
-    jumpQueued = false; startQueued = false; restartQueued = false;
+    jumpQueued = false; startQueued = false; restartQueued = false; facing = 1;
     get body() { return this.player.body as Phaser.Physics.Arcade.Body; }
     emitState() { options.onEvent?.({ type: 'state', state: this.state, score: this.score }); }
     create() {
       pending = false;
       this.state = 'ready'; this.score = 0; this.ticks = 0; this.accumulator = 0; this.jumpHeld = false; this.coyote = 0; this.jumpBuffer = 0;
-      this.jumpQueued = false; this.startQueued = false; this.restartQueued = false;
+      this.jumpQueued = false; this.startQueued = false; this.restartQueued = false; this.facing = 1;
       this.physics.world.setBounds(0, 0, current.world.width, current.world.height, true, true, true, false);
       this.cameras.main.setBounds(0, 0, current.world.width, current.world.height);
       drawBackdrop(this); this.coinArt.clear();
@@ -106,7 +106,9 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
         this.physics.world.update(0, 1000 / P.fps); this.physics.world.postUpdate(); this.ticks++;
         if (this.body.y >= current.world.height) this.die();
       }
-      this.playerArt.setPosition(this.body.x, this.body.y);
+      if (this.body.velocity.x) this.facing = Math.sign(this.body.velocity.x);
+      paintRunner(this.playerArt, P.player_width, P.player_height, this.ticks, this.body.velocity.x !== 0, this.body.blocked.down);
+      this.playerArt.setScale(this.facing, 1).setPosition(this.body.x+(this.facing < 0 ? P.player_width : 0), this.body.y);
       this.jumpQueued = false;
       this.jumpHeld = jumping;
     }

@@ -46,8 +46,8 @@ export function HelpPage() {
           <p>
             Press Start game. Use Left and Right, or A and D, to move. Space, W
             or Up jumps. Enter starts and R restarts. A keyboard is needed to
-            play. The green spawn box becomes the blue explorer. Touch the purple
-            finish flag to win. Gold coins are optional: each gives one bonus
+            play. The green spawn box becomes the teal lizard runner. Touch the glowing
+            finish portal to win. Gold coins are optional: each gives one bonus
             point, and you can finish without collecting them. Sketch levels
             share the same art and controls; your drawing decides the layout.
           </p>

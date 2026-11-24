@@ -1432,3 +1432,19 @@ dialog .actions {
     margin: 0;
   }
 }
+
+/* Keep the game frame distinct from the light editing workspace. */
+.game-stage {
+  border: 1px solid #54638c;
+  box-shadow: 0 8px 28px #12253c26;
+}
+.game-message {
+  color: #ecf7ff;
+  background: #141f38ed;
+  border-color: #5b7393;
+  box-shadow: 0 15px 45px #090d2270;
+}
+.game-message h3 { color: #e8fbf4; }
+.game-message .eyebrow, .game-message small { color: #a7cfcf; }
+.game-overlay.completed .eyebrow { color: #8ef4bd; }
+.game-overlay.dead .eyebrow { color: #ffb5aa; }

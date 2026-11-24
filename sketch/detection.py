@@ -51,7 +51,7 @@ def crop(image, box):
     return image.crop((b['x'], b['y'], b['x'] + b['width'], b['y'] + b['height']))
 
 
-def detect(image, method='adaptive', min_area_ratio=0.00008, max_side=1600, region=None):
+def detect(image, method='adaptive', min_area_ratio=0.00008, max_side=1600, region=None, separate_attached=False):
     if method not in ('adaptive', 'otsu'):
         raise ValueError('Threshold method must be adaptive or otsu')
     if not 0 < min_area_ratio < .1 or not 128 <= max_side <= 4096:
@@ -74,9 +74,27 @@ def detect(image, method='adaptive', min_area_ratio=0.00008, max_side=1600, regi
         ink = cv2.countNonZero(mask[y:y+h, x:x+w])
         if ink < max(8, mask.size * min_area_ratio) or min(w, h) < 3:
             continue
-        left, top = max(0, math.floor(x / scale) - 3), max(0, math.floor(y / scale) - 3)
-        right, bottom = min(view.width, math.ceil((x+w) / scale) + 3), min(view.height, math.ceil((y+h) / scale) + 3)
-        boxes.append(dict(x=left + bounds['x'], y=top + bounds['y'], width=right-left, height=bottom-top))
+        regions = [dict(x=0, y=0, width=w, height=h)]
+        separated = False
+        if separate_attached:
+            from .separation import split_supported_shapes
+            component = np.zeros((h,w), dtype=np.uint8)
+            cv2.drawContours(component, [contour - np.array([x,y])], -1, 255, cv2.FILLED)
+            component = cv2.bitwise_and(component, mask[y:y+h, x:x+w])
+            pieces = split_supported_shapes(component)
+            if pieces:
+                regions, separated = pieces, True
+        for piece in regions:
+            px, py = x+piece['x'], y+piece['y']
+            # Separate crops must not pick up the neighbouring object again via padding.
+            pad = 0 if separated else 3
+            left, top = max(0, math.floor(px / scale) - pad), max(0, math.floor(py / scale) - pad)
+            right = min(view.width, math.ceil((px+piece['width']) / scale) + pad)
+            bottom = min(view.height, math.ceil((py+piece['height']) / scale) + pad)
+            box = dict(x=left + bounds['x'], y=top + bounds['y'], width=right-left, height=bottom-top)
+            if separated:
+                box['separation'] = 'triangle_on_platform'
+            boxes.append(box)
     boxes.sort(key=lambda b: (b['y'], b['x']))
     return [dict(id=f'candidate_{i}', **b) for i, b in enumerate(boxes)]
 

@@ -45,7 +45,7 @@ def assess(level):
 
 
 def repair_level(level, allow_repairs=True):
-    """Never move terrain or hazards. Try at most one short bridge."""
+    """Keep terrain fixed, fit supported hazards and try one short bridge."""
     original = deepcopy(level)
     working = deepcopy(level)
     changes, attempts = [], []
@@ -72,29 +72,40 @@ def repair_level(level, allow_repairs=True):
     except ValueError as exc:
         return {'original_level': original, 'level': None, 'changes': changes, 'attempts': attempts,
                 'assessment': None, 'problem': str(exc)}
+    if allow_repairs:
+        from .hazards import fit_hazards
+        working, hazard_changes = fit_hazards(working)
+        changes.extend(hazard_changes)
     result = assess(working)
     attempts.append({'change': 'initial_geometry', 'status': result['status']})
     if allow_repairs and result['status'] != 'reachable':
         platforms = sorted((o for o in working['objects'] if o['type'] == 'platform'), key=lambda p: p['x'])
-        # Several possible gaps are ambiguous. Do not build a new course by trial and error.
+        from playability.validator import max_jump_rise
         gaps = [(a, b) for a, b in zip(platforms, platforms[1:])
-                if 100 < b['x'] - a['x'] - a['width'] <= 240 and abs(a['y'] - b['y']) <= 24]
-        if len(gaps) == 1:
-            a, b = gaps[0]
-            gap = b['x'] - a['x'] - a['width']
-            bridge = {'id': 'auto_bridge', 'type': 'platform', 'x': a['x'] + a['width'] + (gap-48)/2,
-                      'y': (a['y']+b['y'])/2, 'width': 48, 'height': 12}
-            if not any(o['id'] == bridge['id'] or overlaps(bridge, o) for o in working['objects']):
-                trial = deepcopy(working)
+                if 80 < b['x'] - a['x'] - a['width'] <= 240
+                and abs(a['y'] - b['y']) <= max_jump_rise()*.6]
+        # Keep a strict edit budget. A long or crowded course needs a human decision.
+        if 1 <= len(gaps) <= 2:
+            trial = deepcopy(working)
+            proposed = []
+            for index, (a, b) in enumerate(gaps):
+                gap = b['x'] - a['x'] - a['width']
+                bridge = {'id': 'auto_bridge' if index == 0 else f'auto_bridge_{index}', 'type': 'platform',
+                          'x': a['x'] + a['width'] + (gap-48)/2, 'y': (a['y']+b['y'])/2, 'width': 48, 'height': 12}
+                if any(o['id'] == bridge['id'] or overlaps(bridge, o) for o in trial['objects']):
+                    continue
                 trial['objects'].append(bridge)
                 try:
                     validate_level(trial)
                     checked = assess(trial)
                     attempts.append({'change': 'short_bridge', 'status': checked['status']})
+                    proposed.append({'kind': 'add_bridge', 'reason': 'Add one small step across this gap.', 'before': None, 'after': bridge})
                     if checked['status'] == 'reachable':
                         working, result = trial, checked
-                        changes.append({'kind': 'add_bridge', 'reason': 'Add one small step across this gap.', 'before': None, 'after': bridge})
+                        changes.extend(proposed)
+                        break
                 except ValueError:
+                    trial['objects'].pop()
                     attempts.append({'change': 'short_bridge', 'status': 'invalid_geometry'})
     return {'original_level': original, 'level': working, 'changes': changes, 'attempts': attempts,
             'assessment': result, 'problem': None}
@@ -102,7 +113,7 @@ def repair_level(level, allow_repairs=True):
 
 def generate(image, corrections=None, allow_repairs=True):
     corrections = corrections or {}
-    boxes = detect(image)
+    boxes = detect(image, separate_attached=True)
     base = {'image': {'width': image.width, 'height': image.height, 'coordinates': 'exif_oriented_pixels'},
             'status': 'needs_correction', 'model_status': 'not_run', 'candidates': [], 'issues': [],
             'level': None, 'original_level': None, 'assessment': None, 'changes': [], 'attempts': [],

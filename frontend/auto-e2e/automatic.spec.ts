@@ -113,3 +113,30 @@ test('only unclear drawings need a quick correction before real generation', asy
   await expect(page.locator('canvas')).toHaveCount(1);
   await expect(page.getByLabel('I reviewed this object')).toHaveCount(0);
 });
+
+test('an attached tall spike is separated automatically and cleared by one jump', async ({ page }) => {
+  await page.goto('/studio');
+  await page.getByLabel('Upload drawing').setInputFiles(join(process.env.DREAMCRAFT_AUTO_FIXTURES!, 'supported-spike.png'));
+  const generated=page.waitForResponse(r=>r.url().endsWith('/api/sketch/generate'));
+  await page.getByRole('button',{name:'Generate My Game'}).click();
+  const result=await (await generated).json();
+  expect(result.status).toBe('awaiting_phaser');
+  expect(result.issues).toEqual([]);
+  expect(result.candidates).toHaveLength(5);
+  expect(result.candidates.some((c: {separation?:string})=>c.separation==='triangle_on_platform')).toBe(true);
+  const hazard=result.level.objects.find((o:{type:string})=>o.type==='spike');
+  expect(hazard.height).toBeLessThanOrEqual(24); expect(hazard.width).toBeLessThanOrEqual(48);
+  expect(result.changes.some((c:{kind:string})=>c.kind==='fit_hazard')).toBe(true);
+  await expect(page.getByText('The route reached the goal in an actual Phaser replay.')).toBeVisible();
+  await expect(page.getByLabel(/Correct candidate/)).toHaveCount(0);
+  await page.getByRole('button',{name:'Start game',exact:true}).click();
+  await page.locator('canvas').screenshot({path:'/tmp/dreamcraft-neon-runner.png'});
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async()=>{
+    const text=await page.getByLabel('Player position',{exact:true}).textContent();
+    return Number(/X (\d+)/.exec(text||'')?.[1]||0);
+  },{intervals:[16]}).toBeGreaterThan(510);
+  await page.keyboard.press('Space',{delay:60});
+  await expect(page.getByTestId('game-state')).toHaveText('completed',{timeout:10000});
+  await page.keyboard.up('ArrowRight');
+});

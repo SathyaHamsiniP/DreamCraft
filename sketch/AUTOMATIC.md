@@ -1,6 +1,6 @@
 # Automatic sketch games
 
-Automatic generation is the default Studio mode on `feature/automatic-sketch-game`.
+Automatic generation is the default Studio mode on `feature/sketch-runner-polish`.
 It needs the trusted checkpoint selected by `DREAMCRAFT_CHECKPOINT`. The checkpoint
 is a private local file. Never commit it or put its path in a Vite variable.
 
@@ -16,7 +16,7 @@ Open a Codespace for SathyaHamsiniP/DreamCraft. Run this from its repository ter
 ```bash
 git status
 git fetch origin
-git switch feature/automatic-sketch-game
+git switch feature/sketch-runner-polish
 git pull --ff-only
 python3 -m venv .venv
 source .venv/bin/activate
@@ -99,18 +99,34 @@ The shared coordinate converter maps all boxes once. Spawn uses the existing fix
 player dimensions and bottom-centre anchor. The level JSON schema is unchanged.
 Automatic labels are never recorded as human-reviewed labels.
 
-Small repair permission is visible before generation and can be turned off. There
-are at most three object changes: spawn alignment and goal alignment by at most 18
-world units each, plus one new 48 by 12 platform. Alignment requires a single nearby
-support under the whole object. Geometry is rechecked after each alignment and
-before searching. No terrain, hazards or original platforms are moved or deleted.
+Small repair permission is visible before generation and can be turned off. Spawn
+and goal can align by up to 18 units to a single nearby support. Up to eight supported
+spikes can be centred and seated on their platform and fitted to a jump-sized box.
+With the current physics that means at most 48 units wide and 24 high. The height
+limit uses both the fixed player dimensions and the shared simulated jump rise.
+Speed, gravity and jump power are unchanged. Every fit records before/after geometry.
+Manual level JSON keeps its exact dimensions; these fits only apply to automatic
+generation with repairs enabled.
 
-A bridge is tried only for one unambiguous gap between 100 and 240 units, with at
-most 24 units difference in platform height and no object overlap. The trial is
-validated and searched again. Only a reachable trial is retained. Several candidate
-gaps, a 400-unit gap or a distant high goal do not trigger a new course layout.
-Search is bounded to 12,000 states, 1.5 seconds and 1,200 ticks per attempt. There
-are at most two route-search attempts. A failed attempt is not proof of impossibility.
+At most two new 48 by 12 bridges are tried for clear gaps between 80 and 240 units.
+Platform height difference must be at most 60% of the shared jump rise, and a bridge
+must not overlap an object. Each trial is validated and searched again. Proposed
+bridges are retained only when the whole route is reachable; otherwise they are
+discarded. More than two suitable gaps, a 400-unit gap or a distant high goal still
+need help. Original platforms are never moved, and hazards are never deleted.
+
+Geometry is checked after each fit. There are at most twelve logged object changes
+(two marker alignments, eight hazard fits and two bridges), and three route searches.
+Each search is bounded to 12,000 states, 1.5 seconds and 1,200 ticks. A failed search
+is not proof of impossibility. The browser still verifies the final route in Phaser.
+
+Automatic detection also tries separating upward triangles resting on a platform.
+It requires two long horizontal rails, closed sides and triangular ink above the
+upper rail. It uses the observed base pixels, not a generated triangle. These crops
+are still classified by the real CNN. This handles common touching triangle/platform
+sketches, including several triangles on one ledge. Letters, circles, heavily slanted
+paper and unclear joins can still need correction. The manual candidate API keeps
+its previous detection defaults.
 
 The response includes `original_level`, `level`, `changes` with before/after objects,
 `attempts`, `issues`, `candidates`, `model_status`, `stages` and `assessment`.
