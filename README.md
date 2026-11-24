@@ -1,157 +1,285 @@
-# DreamCraft 🎮
+# DreamCraft
 
-**Draw a game. Watch it come to life.**
+### AI-Powered Sketch-to-Playable Game Generator
 
-Imagine drawing a few shapes on paper and turning them into a game. DreamCraft does just that. You upload a sketch. OpenCV finds the shapes, a trained CNN suggests what they mean, and the app turns them into a Phaser game. It checks possible paths and tries small, visible fixes when a level is difficult to complete.
+## Overview
 
-Today, DreamCraft creates **2D platform games**. Other game types, such as mazes and racing games, are ideas for future versions.
+DreamCraft is a web application that converts hand-drawn 2D game levels into playable games.
 
-## Draw your level
+Users upload a sketch containing platforms, obstacles, collectibles, a starting point and a goal. The application identifies these objects, calculates their positions, checks the level's playability and generates an interactive game.
 
-Use a dark pen on plain white paper. The game understands five symbols:
+DreamCraft combines computer vision, machine learning and game development to automate the process of creating 2D platform games.
 
-| Draw | Meaning |
-| --- | --- |
-| Long rectangle | Platform to stand on |
-| Circle | Bonus coin |
-| Upward triangle | Hazard to jump over |
-| **S** | Where the player starts |
-| **G** | Where the player finishes |
+## How It Works
 
-Use **one S and one G**. Leave some space between shapes. A clear PNG or JPEG works best.
+The game generation process consists of five stages:
 
-In the latest development version, the normal path is simple:
+1. **Image Processing:** OpenCV detects objects in the uploaded sketch.
+2. **Object Recognition:** A trained CNN classifies the detected symbols.
+3. **Level Generation:** The application calculates object positions and dimensions.
+4. **Playability Validation:** The system checks reachable paths and attempts limited adjustments when necessary.
+5. **Game Rendering:** Phaser generates the playable game.
 
-**Upload sketch → Generate My Game → Play → Save.**
+Users can play, edit and save their generated levels.
 
-DreamCraft measures object positions automatically. It checks whether there is a route to the goal, then tries the route in Phaser. If the drawing is unclear, it asks for a correction. **Advanced Edit** is there when you want to move shapes or use **Approve all**. Not every sketch can be made playable automatically.
+### Supported Objects
 
-## Run on GitHub Codespaces
+| Sketch Symbol | Game Object |
+|---|---|
+| Rectangle | Platform |
+| Circle | Coin |
+| Triangle | Obstacle |
+| S | Starting point |
+| G | Goal |
 
-The newest automatic generator, cartoon runner, barriers and simpler controls are on the **`feature/sketch-runner-polish`** branch. The `main` branch still has the earlier manual Studio. Use the commands below to try the newer experience.
+Sketches should contain clearly drawn symbols, with one starting point and one goal.
 
-### 1. Open the project
+## Technologies Used
 
-Open [DreamCraft on GitHub](https://github.com/SathyaHamsiniP/DreamCraft). Select **Code → Codespaces** and open or create a Codespace.
+| Component | Technology |
+|---|---|
+| Frontend | React, TypeScript, Vite |
+| Backend | Python, FastAPI |
+| Image Processing | OpenCV |
+| Machine Learning | PyTorch, CNN |
+| Game Engine | Phaser 3 |
+| Database | SQLite |
+| Playability Validation | Python-based physics simulation |
 
-A Codespace normally opens the project for you. You do **not** need to clone it again.
+## Installation and Setup
 
-In its terminal, run:
+DreamCraft can run locally on Windows, macOS or Linux, or in GitHub Codespaces.
 
-```bash
-git status
-git fetch origin
-git switch feature/sketch-runner-polish
-git pull --ff-only
-```
+### Prerequisites
 
-If the switch says the branch is not available locally, run `git switch --track origin/feature/sketch-runner-polish` instead. If `git status` shows uncommitted work, save it before switching branches. Do not delete those changes.
+Install the following:
 
-If you are **not** using Codespaces and have no local copy yet, start with:
+- Python 3.12
+- Node.js 24 or Node.js 22.12+
+- Git
+
+### 1. Clone the Repository
+
+Open a terminal and run:
 
 ```bash
 git clone https://github.com/SathyaHamsiniP/DreamCraft.git
 cd DreamCraft
+```
+
+The latest automatic-generation implementation is available on the `feature/sketch-runner-polish` branch:
+
+```bash
+git fetch origin
 git switch --track origin/feature/sketch-runner-polish
 ```
 
-### 2. Install what the app needs
+If this branch already exists locally, use `git switch feature/sketch-runner-polish` instead.
 
-Use **Python 3.12** and **Node.js 24** (or Node.js 22.12+). Check with `python3 --version` and `node --version`. If Node is too old and `nvm` is available, run `nvm install 24` and `nvm use 24`.
+### 2. Install Dependencies
 
-Run the following **once** in the project folder:
+**Windows (PowerShell)**
 
-```bash
-if [ ! -d .venv ]; then python3 -m venv .venv; fi
-source .venv/bin/activate
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
 python -m pip install --upgrade pip
-python -m pip install 'torch>=2.6,<3' --index-url https://download.pytorch.org/whl/cpu
 python -m pip install -r sketch/requirements.txt
+
 npm ci --prefix game
 npm ci --prefix frontend
 ```
 
-### 3. Add your trained model
+If PowerShell prevents virtual environment activation, use `.\.venv\Scripts\python.exe` instead of `python` for the Python commands.
 
-Automatic recognition needs your trained **`best.pt`**. It is not included in the repository.
+**macOS / Linux**
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
+python -m pip install -r sketch/requirements.txt
+
+npm ci --prefix game
+npm ci --prefix frontend
+```
+
+For Linux systems that require a CPU-only PyTorch installation, use the installation instructions at https://pytorch.org/get-started/locally/.
+
+### 3. Configure the Trained Model
+
+Automatic object recognition requires the trained CNN checkpoint.
+
+Place `best.pt` in:
+
+```text
+DreamCraft/
+└── ml/
+    └── runs/
+        └── public/
+            └── best.pt
+```
+
+Create the directory if it does not exist.
+
+Windows:
+
+```powershell
+New-Item -ItemType Directory -Force ml\runs\public
+```
+
+macOS / Linux:
 
 ```bash
 mkdir -p ml/runs/public
 ```
 
-In the Codespaces file explorer, right-click **`ml/runs/public` → Upload**, and choose `best.pt` from your computer. The file should be at `ml/runs/public/best.pt`.
+Copy the trained checkpoint into this directory.
 
-Keep the model private. **Do not commit it or the training images to GitHub.** Without the model, you can still try sample games and the manual editor.
+The checkpoint is stored locally and is not included in the repository.
 
-### 4. Start the backend (Terminal 1)
+### 4. Start the Backend
+
+Open a terminal inside the DreamCraft project.
+
+**Windows (PowerShell)**
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+
+$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path ".\ml\runs\public\best.pt").Path
+
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+**macOS / Linux**
 
 ```bash
 source .venv/bin/activate
+
 export DREAMCRAFT_CHECKPOINT="$(pwd)/ml/runs/public/best.pt"
-export OMP_NUM_THREADS=2
-export MKL_NUM_THREADS=2
-python -c "from sketch.model_service import local_predictor; print('CNN status:', local_predictor()[2])"
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-For automatic recognition, the model check should print **`CNN status: ready`**. Otherwise, check the model file and dependencies. Leave this terminal running.
+The backend runs on port **8000**.
 
-### 5. Start the website (Terminal 2)
+Keep this terminal running.
 
-Open another terminal in the same project folder:
+### 5. Start the Frontend
+
+Open a second terminal in the DreamCraft directory.
 
 ```bash
 npm run dev --prefix frontend
 ```
 
-In Codespaces, open the **Ports** tab and choose **Open in Browser** for **port 5174**. Keep the forwarded port private. The website sends API requests to the backend on port 8000 automatically.
+Open the application in your browser:
 
-Now open **Studio**, upload a drawing and click **Generate My Game**.
+http://localhost:5174
 
-### 6. Play your game
+The frontend runs on port **5174** and communicates with the backend through the development server.
 
-Click **Start game**. Use **← / →** or **A / D** to move. Use **Space**, **W** or **↑** to jump. Click **Restart** or press **R** to try again.
+### Running in GitHub Codespaces
 
-Reach the purple finish portal. Coins give bonus points but are not required to win.
+GitHub Codespaces provides a cloud development environment, so local installation is not required.
 
-To stop either server, press **Ctrl+C** in its terminal. On future visits, you normally only need to activate `.venv` and restart the backend and frontend. You do not need to reinstall everything.
+1. Open the DreamCraft repository on GitHub.
+2. Select **Code → Codespaces**.
+3. Create or open a Codespace.
+4. Switch to the required branch.
+5. Follow the Linux installation and startup commands above.
+6. Open port **5174** from the Codespaces Ports tab.
 
-## Check that everything works
+To use automatic recognition, upload your trained `best.pt` file into `ml/runs/public/` using the Codespaces file explorer.
 
-These commands run from the project root with `.venv` activated:
+Keep the forwarded application port private.
+
+## Using DreamCraft
+
+Open the Studio page and upload a PNG or JPEG image of a game sketch.
+
+Select **Generate My Game** to begin processing.
+
+The application detects the objects, classifies them using the CNN, creates the level geometry and checks for a playable route.
+
+When generation succeeds, the game is displayed in the browser. Unclear symbols or unsuitable layouts may require corrections through Advanced Edit.
+
+### Game Controls
+
+| Key | Action |
+|---|---|
+| Left / Right Arrow | Move |
+| A / D | Move |
+| Space / W / Up Arrow | Jump |
+| R | Restart |
+
+Players must reach the goal while avoiding obstacles. Coins provide additional points but are not required to complete a level.
+
+## Model Training and Evaluation
+
+The CNN was trained using images from Google Quick, Draw! and EMNIST.
+
+The dataset contains 14,847 images across five object classes.
+
+| Metric | Result |
+|---|---|
+| Training samples | 9,000 |
+| Validation samples | 3,000 |
+| Test samples | 2,847 |
+| Training epochs | 30 |
+| Test accuracy | 98.84% |
+| Macro F1-score | 98.85% |
+
+These results measure classification accuracy on individual sketch symbols. They do not represent complete game-generation accuracy.
+
+## Running Tests
+
+Run the following commands from the project root:
 
 ```bash
 python -m pytest ml/tests contracts/tests backend/tests sketch/tests playability/tests -q
+
 npm test --prefix game
 npm test --prefix frontend
+
 npm run build --prefix game
 npm run build --prefix frontend
 ```
 
-For browser gameplay tests, install Chromium and run:
+For browser tests, install Playwright Chromium and run:
 
 ```bash
 npx --prefix game playwright install --with-deps chromium
+
 npm run test:browser --prefix game
 npm run test:browser --prefix frontend
 ```
 
-Browser tests start their own servers. Stop the regular development servers before running them.
+Stop the normal development servers before starting browser tests.
 
-## Our AI results
+## Project Structure
 
-The CNN was trained locally on **14,847** symbols from Google Quick, Draw! and EMNIST. It achieved **98.84% accuracy** and **98.85% macro F1-score** on 2,847 held-out **individual-symbol** test images.
+| Directory | Description |
+|---|---|
+| `frontend/` | React application and user interface |
+| `backend/` | API and database operations |
+| `ml/` | CNN training and inference |
+| `sketch/` | Image processing and game generation |
+| `game/` | Phaser game engine |
+| `playability/` | Level validation |
+| `contracts/` | Shared game rules and level formats |
 
-This measures symbol recognition, **not** the success rate of complete photographed game sketches. Whole-sketch recognition and real-world playability still need careful testing.
+## Limitations
 
-## How the project is organized
+DreamCraft currently supports 2D platform games using five predefined object classes.
 
-- [`frontend/`](frontend/README.md) — React website and Studio.
-- [`sketch/`](sketch/README.md) — image detection and game generation.
-- [`ml/`](ml/README.md) — CNN, datasets and training.
-- [`backend/`](backend/README.md) — FastAPI and SQLite saved games.
-- [`game/`](game/README.md) — Phaser gameplay and animations.
-- [`playability/`](playability/README.md) — route checking.
-- [`contracts/`](contracts/README.md) — shared level and physics rules.
+Complex, overlapping or unclear sketches may require manual corrections. Automatic playability checking uses a bounded simulation and cannot guarantee that every generated game will be easy to complete.
 
-For more details, see the [automatic generation guide](sketch/AUTOMATIC.md), [CNN setup](backend/RECOGNITION.md) and [artwork credits](game/ART.md).
+Future improvements may include additional game genres, more object types and improved recognition of complex sketches.
+
+## Repository
+
+https://github.com/SathyaHamsiniP/DreamCraft
