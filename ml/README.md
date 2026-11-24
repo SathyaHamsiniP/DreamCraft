@@ -299,3 +299,10 @@ Full-sheet candidate detection and a local crop collection interface are now in
 [the sketch tools](../sketch/README.md). They keep detection separate from this
 classifier and export the same CSV metadata format. The earlier module scope
 statements above refer to `ml/` itself.
+
+## Public sketch data
+
+See [PUBLIC_DATASETS.md](PUBLIC_DATASETS.md) for the Quick Draw and EMNIST ByClass
+importer, explicit splits, source credits, preview and experiment commands.
+This environment could not download the official data, so no public-data training
+accuracy is reported yet. Keep the game visual upgrade on its separate branch.
