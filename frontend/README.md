@@ -2,8 +2,8 @@
 
 The React studio connects the existing sketch APIs, SQLite level storage, Phaser
 game and playability checker. It supports predefined sample levels and manually
-reviewed sketches. There is no trained handwriting model or real recognition
-claim in this app.
+reviewed sketches, with optional predictions from a trusted local CNN. Every
+object still needs human review. See [checkpoint setup](../backend/RECOGNITION.md).
 
 ## Run it locally
 
@@ -142,11 +142,11 @@ The new preview route is needed because raw browser JPEG previews can disagree
 with detector coordinates. No existing backend request or response contract was
 changed. Existing endpoints still work, and mock mode remains separate.
 
-`src/services/recognition.ts` is the candidate adapter. Future actual model results
-can supply a label/score suggestion only when the response says a model ran. These
-suggestions do not automatically label or review an object. The current API never
-produces those scores. Keep detection and classification separate when adding a
-real checkpoint later.
+`src/services/recognition.ts` accepts genuine label/score suggestions only when
+the server says a model ran. Valid labels are filled in, but no object is marked
+reviewed automatically. Low confidence is highlighted. The user can correct every
+label and box. Without a configured checkpoint, the same editor supports manual
+labeling. See [local CNN setup](../backend/RECOGNITION.md).
 
 For training sample collection, run `python -m sketch.app` with the ML dependencies
 installed. Help links to that separate local tool. It saves training crops and

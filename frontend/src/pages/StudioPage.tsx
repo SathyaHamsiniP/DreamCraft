@@ -13,6 +13,7 @@ import { Playability } from "../components/Playability";
 export function StudioPage() {
   const { draft, setDraft, ask } = useStudio();
   const [search, setSearch] = useSearchParams();
+  const [useModel, setUseModel] = useState(true);
   const [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -136,7 +137,12 @@ export function StudioPage() {
     const abort = new AbortController();
     request.current = abort;
     try {
-      const result = await detect(draft.image.file, method, abort.signal);
+      const result = await detect(
+        draft.image.file,
+        method,
+        abort.signal,
+        useModel,
+      );
       if (!alive.current) return;
       if (
         result.image.width !== draft.width ||
@@ -285,12 +291,14 @@ export function StudioPage() {
         <div>
           <span className="badge">
             {draft.mode === "manual"
-              ? "Manual sketch"
+              ? "Sketch review"
               : draft.mode === "sample"
                 ? "Sample level"
                 : "Saved level"}
           </span>
-          <small>No trained handwriting model is connected.</small>
+          <small>
+            Local CNN suggestions are used when configured. Review every object.
+          </small>
         </div>
         <label>
           Try a sample
@@ -415,6 +423,15 @@ export function StudioPage() {
                       </option>
                       <option value="otsu">Otsu · even lighting</option>
                     </select>
+                  </label>
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      checked={useModel}
+                      disabled={!!busy}
+                      onChange={(e) => setUseModel(e.target.checked)}
+                    />
+                    Use local CNN when available
                   </label>
                   <button
                     className="primary"

@@ -6,9 +6,7 @@ import type {
   Level,
   LevelRecord,
 } from "../types";
-export const API_URL = (
-  import.meta.env.VITE_API_URL || ""
-).replace(/\/$/, "");
+export const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 export async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -53,11 +51,16 @@ const json = (body: unknown, method = "POST"): RequestInit => ({
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body),
 });
-export function detect(file: File, method: string, signal?: AbortSignal) {
+export function detect(
+  file: File,
+  method: string,
+  signal?: AbortSignal,
+  classify = true,
+) {
   const data = new FormData();
   data.append("file", file);
   return request<Candidates>(
-    `/api/sketch/candidates?method=${encodeURIComponent(method)}`,
+    `/api/sketch/candidates?method=${encodeURIComponent(method)}&classify=${classify}`,
     { method: "POST", body: data, signal },
   );
 }

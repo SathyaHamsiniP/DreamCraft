@@ -92,3 +92,7 @@ candidate detection. It returns `{url, width, height}`, where `url` is a PNG dat
 URL with EXIF orientation applied and transparency placed on white. The studio
 uses this image so its editor and detector share the same coordinates. No preview
 files or uploads are stored. See [the frontend guide](../frontend/README.md).
+
+For optional real CNN suggestions from a trusted local checkpoint, see
+[Local CNN recognition](RECOGNITION.md). Manual detection remains available without
+weights. Every prediction still needs human review before creating a level.

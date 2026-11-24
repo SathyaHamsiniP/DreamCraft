@@ -151,3 +151,44 @@ for (const status of ["reachable", "unreachable", "unknown"] as const) {
       ).toBeInTheDocument();
   });
 }
+
+it("prefills real model suggestions but requires review and allows correction", async () => {
+  const user = userEvent.setup();
+  const response = {
+    model_status: "ran",
+    image: {
+      width: 200,
+      height: 100,
+      coordinates: "exif_oriented_pixels" as const,
+    },
+    candidates: [
+      {
+        ...initial,
+        predicted_class: "spawn" as const,
+        confidence: 0.55,
+        low_confidence: true,
+        prediction_status: "predicted",
+      },
+    ],
+    warnings: [],
+  };
+  function SuggestedEditor() {
+    const [boxes, setBoxes] = useState(candidateBoxes(response));
+    return (
+      <ObjectEditor
+        boxes={boxes}
+        onChange={setBoxes}
+        width={200}
+        height={100}
+      />
+    );
+  }
+  render(<SuggestedEditor />);
+  expect(screen.getByLabelText("Object type")).toHaveValue("spawn");
+  expect(screen.getByLabelText("I reviewed this object")).not.toBeChecked();
+  expect(screen.getByText(/Low confidence/)).toBeInTheDocument();
+  await user.selectOptions(screen.getByLabelText("Object type"), "goal");
+  expect(screen.getByLabelText("Object type")).toHaveValue("goal");
+  await user.click(screen.getByLabelText("I reviewed this object"));
+  expect(screen.getByLabelText("I reviewed this object")).toBeChecked();
+});

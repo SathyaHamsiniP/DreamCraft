@@ -100,7 +100,7 @@ export function ObjectEditor({
         width: Math.max(1, Math.abs(p.x - d.x)),
         height: Math.max(1, Math.abs(p.y - d.y)),
       };
-    update(d.id, { ...patch, reviewed: false });
+    update(d.id, { ...patch, reviewed: false, prediction: undefined });
   }
   function number(key: "x" | "y" | "width" | "height", value: number) {
     if (!current) return;
@@ -118,7 +118,11 @@ export function ObjectEditor({
       return;
     }
     setError("");
-    update(current.id, { [key]: value, reviewed: false });
+    update(current.id, {
+      [key]: value,
+      reviewed: false,
+      prediction: undefined,
+    });
   }
   return (
     <div className="editor-grid">
@@ -300,7 +304,9 @@ export function ObjectEditor({
               <p className="hint">
                 Model suggestion: {current.prediction.label} (
                 {Math.round(current.prediction.confidence * 100)}%). Please
-                review it.
+                review it.{" "}
+                {current.prediction.lowConfidence &&
+                  "Low confidence — check this label carefully."}
               </p>
             )}
             <label className="check-label">
@@ -331,9 +337,10 @@ export function ObjectEditor({
         )}
         <hr />
         <small>
-          Manual sketch mode
+          Object review
           <br />
-          No trained model is connected. Choose each object type yourself.
+          Model suggestions can be wrong. Correct the type and box, then confirm
+          each object.
         </small>
       </aside>
     </div>

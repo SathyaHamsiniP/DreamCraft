@@ -2,22 +2,38 @@ import type { Box, Candidates } from "../types";
 import { symbols } from "../types";
 export function candidateBoxes(data: Candidates): Box[] {
   // Detection and future predictions enter the editor through this one adapter.
-  return data.candidates.map(({ predicted_class, confidence, ...box }) => ({
-    id: box.id,
-    x: box.x,
-    y: box.y,
-    width: box.width,
-    height: box.height,
-    reviewed: false,
-    ...(data.model_status === "ran" &&
-    symbols.some((s) => s.kind === predicted_class) &&
-    typeof confidence === "number" &&
-    Number.isFinite(confidence) &&
-    confidence >= 0 &&
-    confidence <= 1
-      ? { prediction: { label: predicted_class!, confidence } }
-      : {}),
-  }));
+  return data.candidates.map(
+    ({
+      predicted_class,
+      confidence,
+      low_confidence,
+      prediction_status,
+      ...box
+    }) => ({
+      id: box.id,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      reviewed: false,
+      ...(data.model_status === "ran" &&
+      prediction_status !== "invalid" &&
+      symbols.some((s) => s.kind === predicted_class) &&
+      typeof confidence === "number" &&
+      Number.isFinite(confidence) &&
+      confidence >= 0 &&
+      confidence <= 1
+        ? {
+            type: predicted_class!,
+            prediction: {
+              label: predicted_class!,
+              confidence,
+              lowConfidence: low_confidence !== false,
+            },
+          }
+        : {}),
+    }),
+  );
 }
 export function boxWarnings(
   boxes: Box[],
