@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { loadEngine, type GameHandle, type GameEvent } from "../services/game";
 import type { Level } from "../types";
+import { userMessage } from "../services/messages";
 export function GamePlayer({ level }: { level: Level }) {
   const container = useRef<HTMLDivElement>(null),
     handle = useRef<GameHandle | null>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
   const [event, setEvent] = useState<GameEvent>({
     type: "state",
     state: "ready",
@@ -17,6 +20,7 @@ export function GamePlayer({ level }: { level: Level }) {
     let game: GameHandle | undefined;
     setLoading(true);
     setError("");
+    started.current = false;
     // A separate parent keeps a delayed Phaser destroy from affecting the next mount.
     const parent = document.createElement("div");
     parent.className = "phaser-host";
@@ -37,6 +41,10 @@ export function GamePlayer({ level }: { level: Level }) {
             if (active) {
               setEvent(next);
               setLoading(false);
+              if (next.state === 'playing') started.current = true;
+              if (next.state === 'ready' && started.current) {
+                queueMicrotask(() => { if (active) game?.start(); });
+              }
             }
           },
         });
@@ -44,7 +52,7 @@ export function GamePlayer({ level }: { level: Level }) {
       })
       .catch((e) => {
         if (active) {
-          setError(String(e));
+          setError(userMessage(e instanceof Error ? e.message : String(e)));
           setLoading(false);
         }
       });
@@ -58,15 +66,17 @@ export function GamePlayer({ level }: { level: Level }) {
   }, [level]);
   const totalCoins = level.objects.filter((o) => o.type === "coin").length;
   function control(action: "start" | "restart") {
+    started.current = true;
     handle.current?.[action]();
-    container.current?.focus();
+    stage.current?.scrollIntoView?.({ block: 'center', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'auto' : 'smooth' });
+    container.current?.focus({ preventScroll: true });
   }
   return (
     <section className="card game-player">
       <div className="panel-heading">
         <div>
           <div className="eyebrow">GAME PREVIEW</div>
-          <h2>Reach the finish flag</h2>
+          <h2>Reach the finish</h2>
         </div>
         <div className="game-stats">
           <span data-testid="game-state">
@@ -85,12 +95,19 @@ export function GamePlayer({ level }: { level: Level }) {
           Cannot start the game: {error}
         </p>
       )}
-      <div className="game-stage">
+      <div className="game-toolbar">
+        <div className="actions">
+          <button className="primary" disabled={loading || !!error || event.state !== 'ready'} onClick={() => control('start')}>Start game</button>
+          <button disabled={loading || !!error} onClick={() => control('restart')}>Restart</button>
+        </div>
+        <p>Use ← → to move and Space to jump.</p>
+      </div>
+      <div ref={stage} className="game-stage">
         <div
           ref={container}
           className="game-container"
           tabIndex={0}
-          onPointerDown={() => container.current?.focus()}
+          onPointerDown={() => container.current?.focus({ preventScroll: true })}
           aria-label="Game area. Use arrow keys to move and Space to jump."
         />
         {!loading && !error && event.state !== "playing" && (
@@ -108,20 +125,17 @@ export function GamePlayer({ level }: { level: Level }) {
                   ? "Level complete!"
                   : event.state === "dead"
                     ? "Try that jump again"
-                    : "A little adventure awaits"}
+                    : "Ready to play?"}
               </h3>
               <p>
                 {event.state === "completed"
                   ? totalCoins
-                    ? `You collected ${event.score} of ${totalCoins} bonus coins. Coins are optional — reaching the flag wins the level.`
+                    ? `You collected ${event.score} of ${totalCoins} bonus coins. Reaching the portal completes the level.`
                     : "You reached the glowing finish portal. Nice work!"
                   : event.state === "dead"
                     ? "Jump over red barriers and across gaps. Restart to try again."
                     : "Move right, jump between platforms, and touch the glowing finish portal."}
               </p>
-              {event.state === "ready" && (
-                <small>Press Start game below, then use ← → and Space.</small>
-              )}
               {event.state === "completed" && totalCoins > event.score && (
                 <small>
                   Want another challenge? Restart and try to collect every coin.
@@ -132,52 +146,11 @@ export function GamePlayer({ level }: { level: Level }) {
         )}
       </div>
       <div className="game-guide" aria-label="How to play">
-        <div>
-          <b>01 · Move & jump</b>
-          <span>
-            You are the skater runner. ← → or A / D moves. Space, W or ↑ jumps.
-          </span>
-        </div>
-        <div>
-          <b>02 · Watch your step</b>
-          <span>Land on platforms. Gaps and red barriers end a run.</span>
-        </div>
-        <div>
-          <b>03 · Find the finish</b>
-          <span>
-            Touch the purple portal to win.
-            {totalCoins > 0
-              ? " Gold coins give 1 bonus point each; you do not need them to finish."
-              : " This level has no coins."}
-          </span>
-        </div>
+        <p>Guide the runner to the purple portal. Use the arrow keys or A and D to move, and press Space, W or the up arrow to jump over gaps and red barriers.
+          {totalCoins > 0 && ' Gold coins add one bonus point each; collecting them is optional.'}
+        </p>
       </div>
-      <div className="panel-heading">
-        <div className="actions">
-          <button
-            className="primary"
-            disabled={loading || !!error}
-            onClick={() => control("start")}
-          >
-            Start game
-          </button>
-          <button
-            disabled={loading || !!error}
-            onClick={() => control("restart")}
-          >
-            Restart
-          </button>
-        </div>
-        <small>
-          ← → or A / D to move · Space to jump · Enter to start · R to restart
-        </small>
-      </div>
-      <details><summary>Player position</summary><output aria-label="Player position">{position}</output></details>
-      <p className="hint">
-        Click Start game to focus the game. All sketch levels use these controls
-        and this visual style; your reviewed objects decide the layout. Playing
-        needs a keyboard.
-      </p>
+      <output hidden aria-label="Player position">{position}</output>
     </section>
   );
 }

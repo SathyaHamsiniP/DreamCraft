@@ -29,7 +29,7 @@ afterEach(() => vi.unstubAllGlobals());
 async function upload() {
   render(<StudioProvider><MemoryRouter><AutomaticStudio /></MemoryRouter></StudioProvider>);
   fireEvent.change(screen.getByLabelText('Upload drawing'), { target: { files: [new File(['image'], 'drawing.png', { type: 'image/png' })] } });
-  await screen.findByText('drawing.png · 960 × 540 pixels');
+  await screen.findByText('drawing.png');
 }
 it('uses automatic mode without labels or dimensions and saves only after Phaser wins', async () => {
   await upload();
@@ -39,13 +39,13 @@ it('uses automatic mode without labels or dimensions and saves only after Phaser
   expect(await screen.findByText('Verified game mounted')).toBeInTheDocument();
   expect(replay).toHaveBeenCalledWith(level, assessment.path, expect.any(AbortSignal));
   await userEvent.click(screen.getByRole('button', { name: 'Save level' }));
-  expect(await screen.findByText('Game saved in the database.')).toBeInTheDocument();
+  expect(await screen.findByText('Your game is saved.')).toBeInTheDocument();
 });
 it('does not claim a playable game when Phaser replay fails', async () => {
   replay.mockResolvedValue(false);
   await upload();
   await userEvent.click(screen.getByRole('button', { name: 'Generate My Game' }));
-  expect(await screen.findByText(/Phaser could not finish this route/)).toBeInTheDocument();
+  expect(await screen.findByText(/The test could not reach the finish/)).toBeInTheDocument();
   expect(screen.queryByText('Verified game mounted')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Save level' })).not.toBeInTheDocument();
 });
@@ -68,7 +68,8 @@ it('keeps a missing-checkpoint result separate from recognition success', async 
     issues: [{ id: null, message: 'Configure DREAMCRAFT_CHECKPOINT on the backend.' }] };
   await upload();
   await userEvent.click(screen.getByRole('button', { name: 'Generate My Game' }));
-  expect(await screen.findByText(/Configure DREAMCRAFT_CHECKPOINT/)).toBeInTheDocument();
+  expect(await screen.findByText(/Automatic generation is unavailable right now/)).toBeInTheDocument();
+  expect(document.body.textContent).not.toMatch(/CNN|checkpoint|DREAMCRAFT_CHECKPOINT/);
   expect(replay).not.toHaveBeenCalled();
   expect(screen.queryByText('Verified game mounted')).not.toBeInTheDocument();
 });

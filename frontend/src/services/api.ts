@@ -1,4 +1,5 @@
 import { parseLevel } from "../../../game/src/contracts";
+import { userMessage } from './messages';
 import type {
   Candidates,
   CheckResult,
@@ -24,10 +25,10 @@ export async function request<T>(
     if (!response.ok) {
       const data = await response.json().catch(() => null);
       throw new Error(
-        data?.error?.message ||
+        userMessage(data?.error?.message ||
           (typeof data?.detail === "string"
             ? data.detail
-            : `Request failed (${response.status}). Please try again.`),
+            : 'Something went wrong. Please try again.')),
       );
     }
     return (await response.json()) as T;
@@ -38,7 +39,7 @@ export async function request<T>(
       );
     if (error instanceof TypeError)
       throw new Error(
-        "Cannot reach the server. Check that the backend is running, then try again.",
+        "Cannot reach the server. Please try again in a moment.",
       );
     throw error;
   } finally {

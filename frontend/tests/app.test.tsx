@@ -74,7 +74,7 @@ it("navigates through home, help, levels and a saved game", async () => {
     await screen.findByRole("link", { name: "Open, edit & play →" }),
   );
   await screen.findByText("Game mounted");
-  expect(screen.getByText("Saved in database")).toBeInTheDocument();
+  expect(screen.getByText("Saved")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Check playability" }));
   expect(await screen.findByText("A route was found.")).toBeInTheDocument();
 });
@@ -86,7 +86,7 @@ it("saves a sample and warns before leaving unsaved edits", async () => {
   expect(await screen.findByRole("dialog")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Keep editing" }));
   await user.click(screen.getByRole("button", { name: "Save level" }));
-  expect(await screen.findByText("Saved in database")).toBeInTheDocument();
+  expect(await screen.findByText("Saved")).toBeInTheDocument();
   const call = fetchMock.mock.calls.find(
     ([url, init]) => url.endsWith("/api/levels") && init?.method === "POST",
   );
@@ -96,7 +96,7 @@ it("saves a sample and warns before leaving unsaved edits", async () => {
     target: { value: "19" },
   });
   expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
-  expect(screen.getByLabelText("I reviewed this object")).not.toBeChecked();
+  expect(screen.getByText('All boxes are approved.')).toBeInTheDocument();
 });
 it("previews an upload, shows detection errors and retries real editor data", async () => {
   const user = userEvent.setup();
@@ -112,18 +112,18 @@ it("previews an upload, shows detection errors and retries real editor data", as
   fetchMock.mockResolvedValueOnce(
     response({ error: { message: "Detection is busy. Try again." } }, 503),
   );
-  await user.click(screen.getByRole("button", { name: "Detect candidates" }));
+  await user.click(screen.getByRole("button", { name: "Find shapes" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Detection is busy",
   );
-  await user.click(screen.getByRole("button", { name: "Detect candidates" }));
+  await user.click(screen.getByRole("button", { name: "Find shapes" }));
   await screen.findByRole("button", { name: "Select object 1: Unlabeled" });
   expect(screen.getByLabelText("Review warnings")).toHaveTextContent(
     "Choose a type",
   );
   expect(screen.getByRole("button", { name: "Create level →" })).toBeDisabled();
   await user.selectOptions(screen.getByLabelText("Object type"), "spawn");
-  await user.click(screen.getByLabelText("I reviewed this object"));
+  await user.click(screen.getByRole('button', { name: 'Approve all' }));
   expect(screen.getByLabelText("Review warnings")).toHaveTextContent(
     "Add one goal",
   );
@@ -174,7 +174,7 @@ it("keeps invalid game geometry in the editor for correction", async () => {
     screen.getByRole("button", { name: "Select object 2: spawn" }),
   );
   fireEvent.change(screen.getByLabelText("X"), { target: { value: "850" } });
-  await user.click(screen.getByLabelText("I reviewed this object"));
+  expect(screen.getByRole('button', { name: 'Approve all' })).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Create level →" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Level validation: Spawn must not overlap",

@@ -25,11 +25,6 @@ export function HomePage() {
               Try sample level ▷
             </Link>
           </div>
-          <p className="honest-note">
-            <span aria-hidden="true">✦</span> Try a sample or generate from a clear sketch.
-            <br />
-            Automatic generation needs a trusted local CNN checkpoint. Unclear drawings need your help.
-          </p>
         </div>
         <div
           className="hero-art"
@@ -145,8 +140,8 @@ export function HomePage() {
             ],
             [
               "02",
-              "Make it yours",
-              "Find candidates, fix the boxes, and choose what each object does.",
+              "Create your game",
+              "Upload your drawing and choose Generate My Game.",
             ],
             [
               "03",

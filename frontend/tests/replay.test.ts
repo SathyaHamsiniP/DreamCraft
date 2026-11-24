@@ -5,7 +5,7 @@ const { mountGame } = vi.hoisted(() => ({ mountGame: vi.fn() }));
 vi.mock('../src/services/game', () => ({ loadEngine: async () => ({ mountGame }) }));
 
 it('rejects invalid routes before starting Phaser', async () => {
-  await expect(verifyRoute(sampleLevel('flat'), [{ direction: 9, jump: false, frames: 1 }])).rejects.toThrow('invalid replay');
+  await expect(verifyRoute(sampleLevel('flat'), [{ direction: 9, jump: false, frames: 1 }])).rejects.toThrow('game check could not be completed');
   expect(mountGame).not.toHaveBeenCalled();
 });
 

@@ -14,6 +14,7 @@ HTMLDialogElement.prototype.close = function () {
 };
 Element.prototype.setPointerCapture = function () {};
 Element.prototype.releasePointerCapture = function () {};
+Element.prototype.scrollIntoView = function () {};
 
 // Router requests use Node's Request, so their abort signals must use Node too.
 globalThis.AbortController = transferableAbortController()

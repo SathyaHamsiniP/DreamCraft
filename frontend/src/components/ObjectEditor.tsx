@@ -53,6 +53,12 @@ export function ObjectEditor({
   function update(id: string, patch: Partial<Box>) {
     onChange(boxes.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   }
+  function approveAll() {
+    onChange(boxes.map(b => ({ ...b, reviewed: !!b.type
+      && [b.x, b.y, b.width, b.height].every(Number.isFinite)
+      && b.x >= 0 && b.y >= 0 && b.width > 0 && b.height > 0
+      && b.x + b.width <= width && b.y + b.height <= height })));
+  }
   function addBox() {
     const box: Box = {
       id: `object_${crypto.randomUUID()}`,
@@ -100,7 +106,7 @@ export function ObjectEditor({
         width: Math.max(1, Math.abs(p.x - d.x)),
         height: Math.max(1, Math.abs(p.y - d.y)),
       };
-    update(d.id, { ...patch, reviewed: false, prediction: undefined });
+    update(d.id, { ...patch, prediction: undefined });
   }
   function number(key: "x" | "y" | "width" | "height", value: number) {
     if (!current) return;
@@ -114,13 +120,12 @@ export function ObjectEditor({
       b.x + b.width > width ||
       b.y + b.height > height
     ) {
-      setError("Keep the box inside the image or world with a positive size.");
+      setError("Keep the box inside the drawing and give it a width and height above zero.");
       return;
     }
     setError("");
     update(current.id, {
       [key]: value,
-      reviewed: false,
       prediction: undefined,
     });
   }
@@ -133,10 +138,13 @@ export function ObjectEditor({
               Review objects <span className="count">{boxes.length}</span>
             </h2>
             <small>
-              {image ? "Oriented image" : "Game world"} · {width} × {height} px
+              {image ? "Your drawing" : "Your level"} · {width} × {height}
             </small>
           </div>
           <div className="actions">
+            <button className="primary" disabled={disabled || !boxes.some(b => !b.reviewed && b.type)} onClick={approveAll}>
+              Approve all
+            </button>
             <button disabled={disabled} onClick={addBox}>
               + Add box
             </button>
@@ -227,12 +235,12 @@ export function ObjectEditor({
           </svg>
         </div>
         <p className="hint">
-          Select a box to move it. Drag its corner to resize. Use the fields for
-          exact changes. Every change needs a new review.
+          Move a box by dragging it, or drag its corner to change its size. When
+          the boxes and symbols look right, choose Approve all.
         </p>
         {!boxes.length && (
           <p className="notice">
-            No candidates found. Add or draw boxes to continue manually.
+            No drawings were found. Add a box around each symbol to continue.
           </p>
         )}
         <div className="object-list" aria-label="Objects">
@@ -266,7 +274,8 @@ export function ObjectEditor({
                 onChange={(e) =>
                   update(current.id, {
                     type: (e.target.value || undefined) as Box["type"],
-                    reviewed: false,
+                    reviewed: !!e.target.value && current.reviewed,
+                    prediction: undefined,
                   })
                 }
               >
@@ -295,31 +304,17 @@ export function ObjectEditor({
             </div>
             {current.type === "spawn" && (
               <p className="hint">
-                Spawn becomes the fixed player size. Its bottom centre stays
-                anchored to this box. Check its position after creating the
-                level.
+                Place S just above the platform where the player should start.
               </p>
             )}
             {current.prediction && (
               <p className="hint">
-                Model suggestion: {current.prediction.label} (
-                {Math.round(current.prediction.confidence * 100)}%). Please
-                review it.{" "}
+                Suggested: {current.prediction.label} ({Math.round(current.prediction.confidence * 100)}%).{" "}
                 {current.prediction.lowConfidence &&
-                  "Low confidence — check this label carefully."}
+                  "Please choose the symbol you meant."}
               </p>
             )}
-            <label className="check-label">
-              <input
-                type="checkbox"
-                checked={current.reviewed}
-                disabled={!current.type}
-                onChange={(e) =>
-                  update(current.id, { reviewed: e.target.checked })
-                }
-              />
-              I reviewed this object
-            </label>
+            <p role="status">{current.reviewed ? 'Approved' : 'Not approved yet'}</p>
             <button
               className="danger"
               onClick={() => onChange(boxes.filter((b) => b.id !== current.id))}
@@ -335,13 +330,7 @@ export function ObjectEditor({
         ) : (
           <p>Select a box on the image or add a missed drawing.</p>
         )}
-        <hr />
-        <small>
-          Object review
-          <br />
-          Model suggestions can be wrong. Correct the type and box, then confirm
-          each object.
-        </small>
+        <p>{boxes.filter(b => !b.reviewed).length ? `${boxes.filter(b => !b.reviewed).length} boxes need approval.` : 'All boxes are approved.'}</p>
       </aside>
     </div>
   );

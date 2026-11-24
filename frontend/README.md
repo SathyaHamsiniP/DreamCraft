@@ -2,8 +2,9 @@
 
 The React studio connects the existing sketch APIs, SQLite level storage, Phaser
 game and playability checker. It supports predefined sample levels and manually
-reviewed sketches, with optional predictions from a trusted local CNN. Every
-object still needs human review. See [checkpoint setup](../backend/RECOGNITION.md).
+reviewed sketches, with optional predictions from a trusted local CNN. Automatic
+mode asks only about unclear symbols. Advanced Edit has one **Approve all** action.
+See [checkpoint setup](../backend/RECOGNITION.md).
 
 ## Run it locally
 
@@ -81,8 +82,9 @@ The studio does not call the backend's mock sketch-to-level route.
 4. Select a box to move it. Drag its bottom-right handle to resize it. Use **Draw
    box** or **Add box** for a missed symbol. Numeric fields and object-list buttons
    provide keyboard alternatives. Touch pointers work for drawing and dragging.
-5. Choose Platform, Coin, Spike, Spawn or Goal and confirm review for each object.
-   Moving, resizing or relabeling clears that object's review. Delete noise boxes.
+5. Correct any wrong symbols or boxes, delete noise, then choose **Approve all**.
+   Existing boxes keep approval while you move, resize or relabel them. Newly
+   added boxes start unapproved. Missing labels and invalid boxes cannot be approved.
 6. Use exactly one spawn and one goal. Choose a target world size and create the
    level. The backend performs the shared coordinate conversion and level checks.
    Review warnings and geometry errors are shown separately. Errors leave the
@@ -91,7 +93,7 @@ The studio does not call the backend's mock sketch-to-level route.
    at the scaled symbol's bottom centre. Its position is not clamped into bounds.
    Check its placement in the game. Export JSON if needed.
 8. **Save level** creates a database record. **Save changes** updates the opened
-   record. **Check playability** asks to save current changes first if needed.
+   record. **Check playability** saves current changes first when needed.
 
 The page shows unsaved changes. Replacing a sketch or sample asks before losing
 edits. Leaving the studio warns too; edits stay in memory during navigation but
@@ -105,8 +107,10 @@ so opening a saved game does not recover its source photo.
 
 ### Play and check
 
-Press **Start game** and use Left/Right or A/D to move. Space, W or Up jumps.
-Enter starts and R restarts. Game keys are attached to the focused game area in
+Press **Start game** above the canvas. It starts play, brings the canvas into view
+and focuses it without another page jump. Use Left/Right or A/D to move. Space, W
+or Up jumps. Restart and R start a fresh attempt without another Start click.
+Enter also starts. Game keys are attached to the focused game area in
 the React app. Moving focus away stops those shortcuts from catching editor input.
 The standalone engine keeps its previous window keyboard target by default.
 Mobile users can upload, review and view games; playing needs a keyboard.
@@ -116,10 +120,11 @@ on unmount or level change, ignores late imports/events, and handles Strict Mode
 setup and cleanup. Goal color is purple to match the editor. Physics and level
 rules are unchanged.
 
-The playability panel shows `reachable`, `unreachable` or `unknown` and the backend
-reason, warnings and search information. Unknown is not called impossible.
-`verified_in_game: false` is shown explicitly for a found route. Rendering or
-playing a level does not change that field for the checker request.
+The playability panel explains `reachable`, `unreachable` and `unknown` in plain
+English. Unknown is not called impossible. When `verified_in_game` is false, the
+page says the path has not been tried in the game. Rendering or playing a level
+does not change that field for the checker request. Developer setup messages stay
+out of the app; a small message adapter keeps actionable errors readable.
 
 ## API and code guide
 
@@ -149,7 +154,7 @@ label and box. Without a configured checkpoint, the same editor supports manual
 labeling. See [local CNN setup](../backend/RECOGNITION.md).
 
 For training sample collection, run `python -m sketch.app` with the ML dependencies
-installed. Help links to that separate local tool. It saves training crops and
+installed. This developer tool is separate from the main app. It saves training crops and
 sheet/contributor metadata; the studio saves game levels. See [the collection
 guide](../sketch/README.md) for that workflow.
 

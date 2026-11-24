@@ -14,21 +14,22 @@ import { LevelsPage } from "./pages/LevelsPage";
 import { HelpPage } from "./pages/HelpPage";
 export function Layout() {
   const { draft } = useStudio();
+  const unsaved = draft.dirty && (!!draft.level || draft.boxes.length > 0);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      draft.dirty &&
+      unsaved &&
       currentLocation.pathname === "/studio" &&
       currentLocation.pathname !== nextLocation.pathname,
   );
   useEffect(() => {
-    if (!draft.dirty) return;
+    if (!unsaved) return;
     const warn = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [draft.dirty]);
+  }, [unsaved]);
   return (
     <div className="app-shell">
       <a href="#main" className="skip-link">
@@ -89,7 +90,7 @@ export function Layout() {
       </div>
       {blocker.state === "blocked" && (
         <ConfirmDialog
-          message="You have unsaved changes. They stay in this session, but a refresh will lose them. Leave the studio?"
+          message="You have unsaved changes. Leave without saving?"
           onAnswer={(answer) => (answer ? blocker.proceed() : blocker.reset())}
         />
       )}

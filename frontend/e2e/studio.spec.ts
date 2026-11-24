@@ -34,11 +34,11 @@ test("sample game uses real keyboard controls and cleans up across navigation", 
     .getByRole("link", { name: "Try a sample game →", exact: true })
     .click();
   await ready(page);
-  await expect(page.getByText("A little adventure awaits")).toBeVisible();
+  await expect(page.getByText("Ready to play?")).toBeVisible();
   await page.getByLabel("Sample level", { exact: true }).selectOption("flat");
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByText(/This level has no coins/)).toBeVisible();
+  await expect(page.getByTestId("coin-score")).toHaveCount(0);
   await ready(page);
   await page.getByRole("button", { name: "Start game" }).click();
   await expect(page.getByTestId("game-state")).toHaveText("playing");
@@ -48,23 +48,21 @@ test("sample game uses real keyboard controls and cleans up across navigation", 
   });
   await page.keyboard.up("ArrowRight");
   await page.getByRole("button", { name: "Restart", exact: true }).click();
-  await ready(page);
-  await page.getByRole("button", { name: "Start game" }).click();
   await expect(page.getByTestId("game-state")).toHaveText("playing");
   await page.getByRole("button", { name: "Save level", exact: true }).click();
   await expect(
-    page.getByText("Saved in database", { exact: true }),
+    page.getByText("Saved", { exact: true }),
   ).toBeVisible();
   await expect(page.getByTestId("game-state")).toHaveText("playing");
   await page.getByRole("button", { name: "Restart", exact: true }).click();
-  await ready(page);
+  await expect(page.getByTestId("game-state")).toHaveText("playing");
   await page.getByRole("button", { name: "Check playability" }).click();
   await expect(
-    page.getByRole("heading", { name: "A route was found" }),
+    page.getByRole("heading", { name: "A path to the finish was found" }),
   ).toBeVisible();
   await expect(
     page.getByText(
-      "This route has not been verified in Phaser for this request.",
+      "This path has not been tried in the game yet.",
     ),
   ).toBeVisible();
   await page.getByRole("button", { name: "Back to editor" }).click();
@@ -73,7 +71,7 @@ test("sample game uses real keyboard controls and cleans up across navigation", 
   await ready(page);
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(
-    page.getByText("Saved in database", { exact: true }),
+    page.getByText("Saved", { exact: true }),
   ).toBeVisible();
   for (const sample of ["coins", "flat", "jump"]) {
     await page.getByLabel("Sample level", { exact: true }).selectOption(sample);
@@ -132,7 +130,7 @@ test("synthetic sketch goes through real detection, manual review, SQLite and Ph
   const resultPromise = page.waitForResponse(
     (r) => r.url().includes("/api/sketch/candidates") && r.status() === 200,
   );
-  await page.getByRole("button", { name: "Detect candidates" }).click();
+  await page.getByRole("button", { name: "Find shapes" }).click();
   const result = await (await resultPromise).json();
   expect(result.model_status).toBe("unavailable");
   expect(result.candidates).toHaveLength(5);
@@ -168,8 +166,8 @@ test("synthetic sketch goes through real detection, manual review, SQLite and Ph
           { exact: true },
         )
         .fill(String(target[i][key]));
-    await page.getByLabel("I reviewed this object").check();
   }
+  await page.getByRole("button", { name: "Approve all" }).click();
   const createdPromise = page.waitForResponse((r) =>
     r.url().endsWith("/api/sketch/reviewed-level"),
   );
@@ -188,7 +186,7 @@ test("synthetic sketch goes through real detection, manual review, SQLite and Ph
   expect((await retrieved.json()).level).toEqual(record.level);
   await page.getByRole("button", { name: "Check playability" }).click();
   await expect(
-    page.getByRole("heading", { name: "A route was found" }),
+    page.getByRole("heading", { name: "A path to the finish was found" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Start game" }).click();
   await page.keyboard.down("ArrowRight");
@@ -232,15 +230,15 @@ test("invalid uploads, blank sheets and missing labels stay editable", async ({
     buffer: Buffer.from(data, "base64"),
   });
   await expect(page.getByText("blank.png", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Detect candidates" }).click();
+  await page.getByRole("button", { name: "Find shapes" }).click();
   await expect(
     page.getByText(
-      "0 candidate boxes found. Choose a type and review each one.",
+      "0 shapes found. Correct anything that looks wrong, then choose Approve all.",
     ),
   ).toBeVisible();
   await page.getByRole("button", { name: "+ Add box" }).click();
   await page.getByLabel("Object type", { exact: true }).selectOption("coin");
-  await page.getByLabel("I reviewed this object").check();
+  await page.getByRole("button", { name: "Approve all" }).click();
   await expect(page.getByLabel("Review warnings")).toContainText(
     "Add one spawn",
   );
@@ -250,7 +248,7 @@ test("invalid uploads, blank sheets and missing labels stay editable", async ({
   await page.getByRole("button", { name: "Delete box" }).click();
   await expect(
     page.getByText(
-      "No candidates found. Add or draw boxes to continue manually.",
+      "No drawings were found. Add a box around each symbol to continue.",
     ),
   ).toBeVisible();
 });
@@ -270,7 +268,7 @@ test("EXIF preview and candidate coordinates use the same pixels", async ({
     mimeType: "image/jpeg",
     buffer: data,
   });
-  await expect(page.getByText(/80 × 120 oriented pixels/)).toBeVisible();
+  await expect(page.locator('.sheet-info').getByText(/80 × 120/)).toBeVisible();
   const svg = page.getByRole("group", { name: "Object editor" });
   await expect(svg).toHaveAttribute("viewBox", "0 0 80 120");
   const detection = await request.post(
@@ -316,7 +314,7 @@ test("boxes can be drawn, moved and resized with a pointer", async ({
     );
   expect(beforeWidth).toBeGreaterThan(100);
   await page.getByLabel("Object type", { exact: true }).selectOption("coin");
-  await page.getByLabel("I reviewed this object").check();
+  await page.getByRole("button", { name: "Approve all" }).click();
   const box = svg.locator("g.box>rect").first();
   await box.scrollIntoViewIfNeeded();
   const b = (await box.boundingBox())!;
@@ -329,7 +327,7 @@ test("boxes can be drawn, moved and resized with a pointer", async ({
   expect(
     Number(await page.getByLabel("X", { exact: true }).inputValue()),
   ).toBeGreaterThan(beforeX);
-  await expect(page.getByLabel("I reviewed this object")).not.toBeChecked();
+  await expect(page.getByText("Approved", { exact: true })).toBeVisible();
   const handle = svg.locator("rect.resize-handle");
   const h = (await handle.boundingBox())!;
   await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
@@ -369,7 +367,7 @@ test("home and studio fit desktop and mobile screens", async ({ page }) => {
   await expect(page.getByText("mobile.png", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "+ Add box" }).click();
   await page.getByLabel("Object type", { exact: true }).selectOption("spawn");
-  await page.getByLabel("I reviewed this object").check();
+  await page.getByRole("button", { name: "Approve all" }).click();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -391,15 +389,12 @@ test("checking an unsaved sample saves it first and explains an unknown result",
   await page.goto("/studio?sample=gap");
   await ready(page);
   await page.getByRole("button", { name: "Check playability" }).click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "Save your current level",
-  );
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "The checker could not decide" }),
+    page.getByRole("heading", { name: "We could not finish checking this level" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Saved in database", { exact: true }),
+    page.getByText("Saved", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText(/This does not mean the level is impossible/),
@@ -414,10 +409,10 @@ test("the new sample explains the goal, coins and jumps", async ({ page }) => {
   await expect(page).toHaveURL(/sample=trail/);
   await ready(page);
   await expect(
-    page.getByRole("heading", { name: "A little adventure awaits" }),
+    page.getByRole("heading", { name: "Ready to play?" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Gold coins give 1 bonus point each/),
+    page.getByText(/Gold coins add one bonus point each/),
   ).toBeVisible();
   await expect(page.getByTestId("coin-score").locator("..")).toContainText(
     "/ 4",
@@ -428,10 +423,8 @@ test("the new sample explains the goal, coins and jumps", async ({ page }) => {
     .locator(".game-player")
     .screenshot({ path: "/tmp/dreamcraft-sky-trail.png" });
   await page.getByRole("button", { name: "Restart", exact: true }).click();
-  await ready(page);
-  await expect(
-    page.getByRole("heading", { name: "A little adventure awaits" }),
-  ).toBeVisible();
+  await expect(page.getByTestId("game-state")).toHaveText("playing");
+  await expect(page.getByRole("heading", { name: "Ready to play?" })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -486,26 +479,26 @@ test("controlled prediction responses prefill labels but never skip review", asy
       buffer: Buffer.from(data, "base64"),
     });
   await expect(page.getByText("controlled.png", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Detect candidates" }).click();
+  await page.getByRole("button", { name: "Find shapes" }).click();
   await expect(page.getByLabel("Object type", { exact: true })).toHaveValue(
     "spawn",
   );
-  await expect(page.getByLabel("I reviewed this object")).not.toBeChecked();
-  await expect(page.getByText(/Low confidence/)).toBeVisible();
+  await expect(page.getByText("Not approved yet", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Please choose the symbol you meant/)).toBeVisible();
   await page.getByLabel("Object type", { exact: true }).selectOption("goal");
-  await page.getByLabel("I reviewed this object").check();
+  await page.getByRole("button", { name: "Approve all" }).click();
   await expect(page.getByLabel("Object type", { exact: true })).toHaveValue(
     "goal",
   );
   await expect(
     page.getByRole("button", { name: "Create level →" }),
   ).toBeDisabled();
-  await page.getByLabel("Use local CNN when available").uncheck();
-  await page.getByRole("button", { name: "Detect candidates" }).click();
+  await page.getByLabel("Suggest symbols automatically").uncheck();
+  await page.getByRole("button", { name: "Find shapes" }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Continue" })
     .click();
   await expect(page.getByLabel("Object type", { exact: true })).toHaveValue("");
-  await expect(page.getByLabel("I reviewed this object")).not.toBeChecked();
+  await expect(page.getByText("Not approved yet", { exact: true })).toBeVisible();
 });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
+import { userMessage } from "../services/messages";
 import type { LevelRecord } from "../types";
 export function LevelsPage() {
   const [records, setRecords] = useState<LevelRecord[]>([]),
@@ -19,7 +20,7 @@ export function LevelsPage() {
         if (active) setRecords(data);
       })
       .catch((e) => {
-        if (active) setError(e.message);
+        if (active) setError(userMessage(e.message));
       })
       .finally(() => {
         if (active) setBusy(false);
@@ -35,7 +36,7 @@ export function LevelsPage() {
         <div>
           <div className="eyebrow">MADE BY YOU</div>
           <h1>My levels</h1>
-          <p>Your games, saved in the backend database.</p>
+          <p>Open a saved game to play it or make changes.</p>
         </div>
         <Link to="/studio" className="button primary">
           + Create a game
@@ -77,8 +78,6 @@ export function LevelsPage() {
                 </p>
                 <small>
                   Saved {new Date(record.updated_at).toLocaleString()}
-                  <br />
-                  <span className="record-id">{record.id}</span>
                 </small>
                 <Link
                   className="button primary"

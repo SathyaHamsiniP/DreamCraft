@@ -1334,7 +1334,19 @@ dialog .actions {
 
 .game-stage {
   position: relative;
+  width: min(100%, 112svh);
+  margin-inline: auto;
+  scroll-margin-block: 18px;
 }
+.game-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+}
+.game-toolbar p { margin: 0; font-size: .85rem; }
 .game-stage .game-container {
   margin-bottom: 0;
   background: #dff3ff;
@@ -1379,10 +1391,9 @@ dialog .actions {
   color: #b23b4c;
 }
 .game-guide {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  padding: 20px 0;
+  padding: 14px 0 0;
+  font-size: .85rem;
+  line-height: 1.65;
 }
 .game-guide div {
   padding: 12px 15px;

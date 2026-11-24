@@ -9,7 +9,9 @@ test('default Studio reports missing weights without a fake game', async ({ page
   });
   await page.getByLabel('Upload drawing').setInputFiles({ name: 'circle.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
   await page.getByRole('button', { name: 'Generate My Game' }).click();
-  await expect(page.getByText(/The local CNN checkpoint is missing/)).toBeVisible();
+  await expect(page.getByText(/Automatic generation is unavailable right now/)).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('CNN');
+  await expect(page.locator('body')).not.toContainText('checkpoint');
   await expect(page.locator('canvas')).toHaveCount(0);
   await page.getByRole('button', { name: 'Open Advanced Edit', exact: true }).click();
   await expect(page.getByRole('group', { name: 'Object editor' })).toBeVisible();

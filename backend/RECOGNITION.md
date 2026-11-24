@@ -31,12 +31,12 @@ npm ci --prefix frontend
 npm run dev --prefix frontend
 ```
 
-Open http://localhost:5174. Upload a sheet and leave **Use local CNN when available**
-checked, then select **Detect candidates**. Suggested classes are filled in. Check
-the box, label and confidence for each candidate, correct mistakes, and confirm
-**I reviewed this object**. Even high-confidence predictions cannot skip review.
-Create the level only after every object is confirmed. You can uncheck the CNN
-option to use detection and manual labeling alone.
+Open http://localhost:5174. In Advanced Edit, upload a sheet and leave
+**Suggest symbols automatically** checked, then select **Find shapes**. Correct any
+wrong boxes or symbols, then choose **Approve all** once. Added boxes need approval;
+moving or relabeling an approved box keeps its approval. Missing labels and invalid
+boxes still block level creation. Uncheck the suggestion option to label manually.
+Automatic mode asks only about unclear drawings and still checks the generated game.
 
 For Bash, use `export DREAMCRAFT_CHECKPOINT=/absolute/path/to/best.pt` and start
 the same backend. A Windows laptop file is not accessible from Codespaces or this

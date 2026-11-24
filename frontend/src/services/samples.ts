@@ -11,7 +11,7 @@ export const samples = [
     id: "trail",
     name: "Sky trail · jump and collect",
     description:
-      "Cross the gap, jump over spikes, and reach the flag. Coins are optional bonuses.",
+      "Cross the gap, jump over barriers, and reach the portal. Coins are optional bonuses.",
     level: trail,
   },
   {
@@ -36,16 +36,16 @@ export const samples = [
     level: jump,
   },
   {
-    category: "Diagnostic examples · need changes",
+    category: "Levels to fix",
     id: "gap",
-    name: "Diagnostic · wide gap (unverified)",
+    name: "Wide gap · needs a change",
     description: "Explore a level that needs changes.",
     level: gap,
   },
   {
-    category: "Diagnostic examples · need changes",
+    category: "Levels to fix",
     id: "high",
-    name: "Diagnostic · high goal (unverified)",
+    name: "High finish · needs a change",
     description: "See what the checker can tell you.",
     level: high,
   },

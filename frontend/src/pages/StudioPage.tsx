@@ -12,6 +12,7 @@ import { ObjectEditor } from "../components/ObjectEditor";
 import { GamePlayer } from "../components/GamePlayer";
 import { AutomaticStudio } from "./AutomaticStudio";
 import { Playability } from "../components/Playability";
+import { userMessage, userNotes } from '../services/messages';
 export function StudioPage() {
   const [search] = useSearchParams();
   if (search.has("sample") || search.has("level") || search.get("advanced") === "1") return <AdvancedStudio />;
@@ -70,7 +71,7 @@ function AdvancedStudio() {
           setCheck(null);
         }
       } catch (e) {
-        if (active) setError((e as Error).message);
+        if (active) setError(userMessage((e as Error).message));
       } finally {
         if (active) setBusy("");
       }
@@ -84,7 +85,7 @@ function AdvancedStudio() {
   }, [query]);
   async function replace(next: () => Promise<void>) {
     if (
-      draft.dirty &&
+      draft.dirty && (draft.level || draft.boxes.length > 0) &&
       !(await ask("This will replace your unsaved studio changes. Continue?"))
     )
       return;
@@ -115,10 +116,10 @@ function AdvancedStudio() {
         });
         setDetectionWarnings([]);
         setCheck(null);
-        setNotice("Image ready. Detect candidates, or add boxes manually.");
+        setNotice("Your drawing is ready. Find the shapes or draw boxes around them.");
         setSearch({ advanced: "1" }, { replace: true });
       } catch (e) {
-        if (alive.current) setError((e as Error).message);
+        if (alive.current) setError(userMessage((e as Error).message));
       } finally {
         if (alive.current) setBusy("");
       }
@@ -141,7 +142,7 @@ function AdvancedStudio() {
       ))
     )
       return;
-    setBusy("Detecting candidates");
+    setBusy("Finding shapes in your drawing");
     setError("");
     request.current?.abort();
     const abort = new AbortController();
@@ -162,12 +163,12 @@ function AdvancedStudio() {
           "Image dimensions do not match the preview. Replace the image and try again.",
         );
       edit(candidateBoxes(result));
-      setDetectionWarnings(result.warnings);
+      setDetectionWarnings(userNotes(result.warnings));
       setNotice(
-        `${result.candidates.length} candidate boxes found. Choose a type and review each one.`,
+        `${result.candidates.length} shapes found. Correct anything that looks wrong, then choose Approve all.`,
       );
     } catch (e) {
-      if (alive.current) setError((e as Error).message);
+      if (alive.current) setError(userMessage((e as Error).message));
     } finally {
       if (alive.current) setBusy("");
     }
@@ -188,7 +189,7 @@ function AdvancedStudio() {
         try { setCheck(await api.assess(level)); }
         catch { setError("The level was created, but its route could not be checked. You can retry after saving."); }
         setNotice(
-          "Valid level created. Check spawn placement and try it before saving.",
+          "Your game is ready to try.",
         );
       }
     } catch (e) {
@@ -211,13 +212,13 @@ function AdvancedStudio() {
         }));
         setNotice(
           draft.savedId
-            ? "Changes saved to the database."
-            : "Level saved to the database.",
+            ? "Your changes are saved."
+            : "Your game is saved.",
         );
       }
       return saved.id;
     } catch (e) {
-      if (alive.current) setError((e as Error).message);
+      if (alive.current) setError(userMessage((e as Error).message));
       return null;
     } finally {
       if (alive.current) setBusy("");
@@ -227,12 +228,6 @@ function AdvancedStudio() {
     if (!draft.level) return;
     let id = draft.savedId;
     if (draft.dirty || !id) {
-      if (
-        !(await ask(
-          "Playability checks need a saved level. Save your current level and check it?",
-        ))
-      )
-        return;
       id = (await saveLevel()) || undefined;
     }
     if (!id || !alive.current) return;
@@ -242,7 +237,7 @@ function AdvancedStudio() {
       const result = await api.check(id);
       if (alive.current) setCheck(result);
     } catch (e) {
-      if (alive.current) setError((e as Error).message);
+      if (alive.current) setError(userMessage((e as Error).message));
     } finally {
       if (alive.current) setBusy("");
     }
@@ -261,7 +256,7 @@ function AdvancedStudio() {
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage((e as Error).message));
     }
   }
   const warnings = boxWarnings(draft.boxes, draft.width, draft.height);
@@ -281,7 +276,7 @@ function AdvancedStudio() {
           {draft.dirty
             ? "Unsaved changes"
             : draft.savedId
-              ? "Saved in database"
+              ? "Saved"
               : "Ready to create"}
         </span>
       </header>
@@ -308,9 +303,6 @@ function AdvancedStudio() {
                 ? "Sample level"
                 : "Saved level"}
           </span>
-          <small>
-            Local CNN suggestions are used when configured. Review every object.
-          </small>
         </div>
         <label>
           Try a sample
@@ -334,7 +326,7 @@ function AdvancedStudio() {
             <option value="" disabled>
               Choose a sample…
             </option>
-            {["Playable demos", "Diagnostic examples · need changes"].map(category => (
+            {["Playable demos", "Levels to fix"].map(category => (
               <optgroup key={category} label={category}>
                 {samples.filter(s => s.category === category).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </optgroup>
@@ -370,9 +362,7 @@ function AdvancedStudio() {
                     : "Your saved level"}
               </h2>
               <small>
-                {draft.level.objects.length} objects · {draft.level.world.width}{" "}
-                × {draft.level.world.height} world ·{" "}
-                {draft.savedId ? `ID: ${draft.savedId}` : "Not saved yet"}
+                {draft.level.objects.length} objects{!draft.savedId && " · Not saved yet"}
               </small>
             </div>
             <div className="actions">
@@ -383,7 +373,7 @@ function AdvancedStudio() {
                 Back to editor
               </button>
               <button disabled={!!busy} onClick={exportLevel}>
-                Export JSON
+                Download game file
               </button>
               <button disabled={!!busy} onClick={() => void validate()}>
                 Check playability
@@ -400,14 +390,14 @@ function AdvancedStudio() {
           {check && <>
             <Playability result={check} />
             {check.status === "reachable" && !check.verified_in_game && check.path && <button disabled={!!busy} onClick={async () => {
-              setBusy("Replaying route in Phaser");
+              setBusy("Trying the game to check the finish");
               try {
                 const won = await verifyRoute(draft.level!, check.path!);
                 setCheck({ ...check, status: won ? "reachable" : "unknown", verified_in_game: won,
-                  reason: won ? "The route reached the goal in a Phaser replay. This does not guarantee an easy level." : "The simulated route did not reach the goal in Phaser. Review the layout and try again." });
-              } catch (e) { setError((e as Error).message); }
+                  reason: won ? "Try the game yourself to see how the jumps feel." : "The test could not reach the finish. Change the layout and try again." });
+              } catch (e) { setError(userMessage((e as Error).message)); }
               finally { setBusy(""); }
-            }}>Verify route in Phaser</button>}
+            }}>Try the path in the game</button>}
           </>}
         </>
       ) : (
@@ -427,24 +417,24 @@ function AdvancedStudio() {
               </h2>
               <p>
                 {draft.image
-                  ? `${draft.width} × ${draft.height} oriented pixels · ${(draft.image.file.size / 1024).toFixed(0)} KiB`
+                  ? `${draft.width} × ${draft.height} · ${(draft.image.file.size / 1024).toFixed(0)} KB`
                   : hasEditor
-                    ? "These boxes use game-world coordinates. Shared game rules will validate your changes."
+                    ? "Move or resize the boxes to change your level."
                     : "Try a sample game, or upload a drawing and label the objects yourself."}
               </p>
               {draft.image ? (
                 <>
                   <label>
-                    Detection method
+                    Lighting
                     <select
                       value={method}
                       disabled={!!busy}
                       onChange={(e) => setMethod(e.target.value)}
                     >
                       <option value="adaptive">
-                        Adaptive · changing lighting
+                        Uneven lighting
                       </option>
-                      <option value="otsu">Otsu · even lighting</option>
+                      <option value="otsu">Even lighting</option>
                     </select>
                   </label>
                   <label className="check-label">
@@ -454,14 +444,14 @@ function AdvancedStudio() {
                       disabled={!!busy}
                       onChange={(e) => setUseModel(e.target.checked)}
                     />
-                    Use local CNN when available
+                    Suggest symbols automatically
                   </label>
                   <button
                     className="primary"
                     disabled={!!busy}
                     onClick={() => void runDetection()}
                   >
-                    Detect candidates
+                    Find shapes
                   </button>
                 </>
               ) : (
@@ -497,8 +487,7 @@ function AdvancedStudio() {
                 <div>
                   <h2>Ready to build the level?</h2>
                   <p>
-                    Review all objects first. The backend checks the final
-                    positions and game rules.
+                    Correct any boxes or symbols that look wrong, then choose Approve all.
                   </p>
                   {warnings.length > 0 && (
                     <div
@@ -549,7 +538,7 @@ function AdvancedStudio() {
                     Create level →
                   </button>
                   <small>
-                    Game geometry errors appear here after validation.
+                    Any positions that need fixing will be shown here.
                   </small>
                 </div>
               </section>

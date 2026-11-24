@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ObjectEditor } from "../src/components/ObjectEditor";
 import { Upload, uploadError } from "../src/components/Upload";
 import { Playability } from "../src/components/Playability";
@@ -42,12 +42,13 @@ describe("object editor", () => {
     await user.selectOptions(screen.getByLabelText("Object type"), "spawn");
     fireEvent.change(screen.getByLabelText("X"), { target: { value: "20" } });
     expect(screen.getByLabelText("X")).toHaveValue(20);
-    await user.click(screen.getByLabelText("I reviewed this object"));
-    expect(screen.getByLabelText("I reviewed this object")).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Approve all' }));
+    expect(screen.getByText('Approved', { exact: true })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Width"), {
       target: { value: "50" },
     });
-    expect(screen.getByLabelText("I reviewed this object")).not.toBeChecked();
+    expect(screen.getByText('Approved', { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve all' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("X"), { target: { value: "190" } });
     expect(screen.getByRole("alert")).toHaveTextContent("inside");
     expect(screen.getByLabelText("X")).toHaveValue(20);
@@ -63,6 +64,32 @@ describe("object editor", () => {
     expect(
       screen.getAllByRole("button", { name: /Select object/ }),
     ).toHaveLength(1);
+  });
+  it('approves valid boxes together without accepting missing labels or invalid bounds', async () => {
+    const onChange = vi.fn();
+    render(<ObjectEditor width={200} height={100} onChange={onChange} boxes={[
+      { ...initial, type: 'coin' },
+      { ...initial, id: 'two', type: 'goal' },
+      { ...initial, id: 'unlabeled' },
+      { ...initial, id: 'outside', type: 'platform', x: 199 },
+    ]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Approve all' }));
+    expect(onChange.mock.calls[0][0].map((b: Box) => [b.id, b.reviewed])).toEqual([
+      ['one', true], ['two', true], ['unlabeled', false], ['outside', false],
+    ]);
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+  it('keeps old boxes approved and asks for approval only after adding another box', async () => {
+    render(<Editor />);
+    await userEvent.selectOptions(screen.getByLabelText('Object type'), 'coin');
+    await userEvent.click(screen.getByRole('button', { name: 'Approve all' }));
+    await userEvent.click(screen.getByRole('button', { name: '+ Add box' }));
+    expect(screen.getByText('Not approved yet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '1. coin ✓' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve all' })).toBeDisabled();
+    await userEvent.selectOptions(screen.getByLabelText('Object type'), 'goal');
+    await userEvent.click(screen.getByRole('button', { name: 'Approve all' }));
+    expect(screen.getByText('All boxes are approved.')).toBeInTheDocument();
   });
 });
 it("validates upload type and size before sending", async () => {
@@ -112,7 +139,7 @@ it("keeps candidate detection separate from predictions", () => {
   expect(boxWarnings(boxes, 200, 100)).toEqual(
     expect.arrayContaining([
       "Choose a type for every object.",
-      "Confirm that every object has been reviewed.",
+      "Choose Approve all when the boxes and symbols look right.",
       "Add one spawn.",
       "Add one goal.",
     ]),
@@ -140,14 +167,14 @@ for (const status of ["reachable", "unreachable", "unknown"] as const) {
     };
     render(<Playability result={result} />);
     expect(screen.getByText(result.reason)).toBeInTheDocument();
-    expect(screen.getByText("expanded: 12")).toBeInTheDocument();
+    expect(screen.getByText("Paths checked: 12")).toBeInTheDocument();
     if (status === "unknown")
       expect(
         screen.getByText(/does not mean the level is impossible/),
       ).toBeInTheDocument();
     if (status === "reachable")
       expect(
-        screen.getByText(/not been verified in Phaser/),
+        screen.getByText(/not been tried in the game/),
       ).toBeInTheDocument();
   });
 }
@@ -185,10 +212,10 @@ it("prefills real model suggestions but requires review and allows correction", 
   }
   render(<SuggestedEditor />);
   expect(screen.getByLabelText("Object type")).toHaveValue("spawn");
-  expect(screen.getByLabelText("I reviewed this object")).not.toBeChecked();
-  expect(screen.getByText(/Low confidence/)).toBeInTheDocument();
+  expect(screen.getByText('Not approved yet')).toBeInTheDocument();
+  expect(screen.getByText(/Please choose the symbol you meant/)).toBeInTheDocument();
   await user.selectOptions(screen.getByLabelText("Object type"), "goal");
   expect(screen.getByLabelText("Object type")).toHaveValue("goal");
-  await user.click(screen.getByLabelText("I reviewed this object"));
-  expect(screen.getByLabelText("I reviewed this object")).toBeChecked();
+  await user.click(screen.getByRole('button', { name: 'Approve all' }));
+  expect(screen.getByText('Approved', { exact: true })).toBeInTheDocument();
 });
