@@ -37,3 +37,34 @@ it("mounts once in Strict Mode and destroys the game on changes and unmount", as
   expect(instances[1].destroy).toHaveBeenCalledOnce();
   expect(document.querySelectorAll(".phaser-host")).toHaveLength(0);
 });
+
+it("explains optional coins and shows a finish message with the real score", async () => {
+  mountGame.mockImplementation((_parent, _level, options) => {
+    options.onEvent({ type: "state", state: "completed", score: 2 });
+    return { destroy: vi.fn(), start: vi.fn(), restart: vi.fn() };
+  });
+  render(<GamePlayer level={sampleLevel("trail")} />);
+  expect(
+    await screen.findByRole("heading", { name: "Level complete!" }),
+  ).toBeInTheDocument();
+  expect(screen.getByTestId("coin-score")).toHaveTextContent("2");
+  expect(
+    screen.getByText(/You collected 2 of 4 bonus coins/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Gold coins give 1 bonus point each/),
+  ).toBeInTheDocument();
+});
+
+it("does not show a pointless coin counter on a level with no coins", async () => {
+  mountGame.mockImplementation((_parent, _level, options) => {
+    options.onEvent({ type: "state", state: "ready", score: 0 });
+    return { destroy: vi.fn(), start: vi.fn(), restart: vi.fn() };
+  });
+  render(<GamePlayer level={sampleLevel("flat")} />);
+  expect(
+    await screen.findByRole("heading", { name: "A little adventure awaits" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByTestId("coin-score")).not.toBeInTheDocument();
+  expect(screen.getByText(/This level has no coins/)).toBeInTheDocument();
+});

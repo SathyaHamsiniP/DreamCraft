@@ -34,6 +34,12 @@ test("sample game uses real keyboard controls and cleans up across navigation", 
     .getByRole("link", { name: "Try a sample game →", exact: true })
     .click();
   await ready(page);
+  await expect(page.getByText("A little adventure awaits")).toBeVisible();
+  await page.getByLabel("Sample level", { exact: true }).selectOption("flat");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByText(/This level has no coins/)).toBeVisible();
+  await ready(page);
   await page.getByRole("button", { name: "Start game" }).click();
   await expect(page.getByTestId("game-state")).toHaveText("playing");
   await page.keyboard.down("ArrowRight");
@@ -398,4 +404,33 @@ test("checking an unsaved sample saves it first and explains an unknown result",
   await expect(
     page.getByText(/This does not mean the level is impossible/),
   ).toBeVisible();
+});
+
+test("the new sample explains the goal, coins and jumps", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/");
+  await page.getByRole("link", { name: "Try sample level ▷" }).click();
+  await expect(page).toHaveURL(/sample=trail/);
+  await ready(page);
+  await expect(
+    page.getByRole("heading", { name: "A little adventure awaits" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Gold coins give 1 bonus point each/),
+  ).toBeVisible();
+  await expect(page.getByTestId("coin-score").locator("..")).toContainText(
+    "/ 4",
+  );
+  await page.getByRole("button", { name: "Start game" }).click();
+  await expect(page.getByTestId("game-state")).toHaveText("playing");
+  await page
+    .locator(".game-player")
+    .screenshot({ path: "/tmp/dreamcraft-sky-trail.png" });
+  await page.getByRole("button", { name: "Restart", exact: true }).click();
+  await ready(page);
+  await expect(
+    page.getByRole("heading", { name: "A little adventure awaits" }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
 });

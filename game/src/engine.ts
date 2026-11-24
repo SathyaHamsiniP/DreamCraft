@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PHYSICS as P, parseLevel } from './contracts';
+import { drawBackdrop, drawObject, drawPlayer } from './art';
 
 export type GameState = 'ready' | 'playing' | 'dead' | 'completed';
 export interface GameEvent { type: 'state' | 'coin'; state: GameState; score: number }
@@ -16,6 +17,8 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
   let pending = true;
   class LevelScene extends Phaser.Scene {
     player!: Phaser.GameObjects.Rectangle;
+    playerArt!: Phaser.GameObjects.Graphics;
+    coinArt = new Map<Phaser.GameObjects.GameObject, Phaser.GameObjects.Container>();
     keys!: Record<string, Phaser.Input.Keyboard.Key>;
     state: GameState = 'ready';
     score = 0; ticks = 0; accumulator = 0; jumpHeld = false;
@@ -26,6 +29,7 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
       this.state = 'ready'; this.score = 0; this.ticks = 0; this.accumulator = 0; this.jumpHeld = false;
       this.physics.world.setBounds(0, 0, current.world.width, current.world.height, true, true, true, false);
       this.cameras.main.setBounds(0, 0, current.world.width, current.world.height);
+      drawBackdrop(this); this.coinArt.clear();
       const solids = this.physics.add.staticGroup();
       const coins = this.physics.add.staticGroup();
       const spikes = this.physics.add.staticGroup();
@@ -36,6 +40,9 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
         const shape = o.type === 'spike'
           ? this.add.triangle(o.x + o.width / 2, o.y + o.height / 2, 0, o.height, o.width / 2, 0, o.width, o.height, colors.spike)
           : this.add.rectangle(o.x + o.width / 2, o.y + o.height / 2, o.width, o.height, colors[o.type]);
+        shape.setVisible(false);
+        const art = drawObject(this, o);
+        if (o.type === 'coin') this.coinArt.set(shape, art);
         this.physics.add.existing(shape, true);
         const body = shape.body as Phaser.Physics.Arcade.StaticBody;
         body.setSize(o.width, o.height); body.position.set(o.x, o.y); body.updateCenter();
@@ -43,6 +50,9 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
       }
       const spawn = current.objects.find(o => o.type === 'spawn')!;
       this.player = this.add.rectangle(spawn.x + P.player_width / 2, spawn.y + P.player_height / 2, P.player_width, P.player_height, 0x2877c6);
+      this.player.setVisible(false);
+      this.playerArt = drawPlayer(this, P.player_width, P.player_height).setPosition(spawn.x, spawn.y);
+      this.add.text(spawn.x + P.player_width / 2, spawn.y - 27, 'START', { fontFamily: 'sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#245b75', backgroundColor: '#ffffff' }).setOrigin(.5, 0).setPadding(4, 2);
       this.physics.add.existing(this.player);
       this.body.setCollideWorldBounds(true).setMaxVelocity(P.speed, P.max_fall_speed);
       this.body.setSize(P.player_width, P.player_height);
@@ -51,7 +61,7 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
         const item = coin as Phaser.GameObjects.Rectangle;
         if (this.state !== 'playing' || !(item.body as Phaser.Physics.Arcade.StaticBody).enable) return;
         (item.body as Phaser.Physics.Arcade.StaticBody).enable = false;
-        item.setVisible(false);
+        item.setVisible(false); this.coinArt.get(item)?.setVisible(false);
         this.score += 1; options.onEvent?.({ type: 'coin', state: this.state, score: this.score });
       });
       this.physics.add.overlap(this.player, spikes, () => this.die());
@@ -78,6 +88,7 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
         this.physics.world.update(0, 1000 / P.fps); this.physics.world.postUpdate(); this.ticks++;
         if (this.body.y >= current.world.height) this.die();
       }
+      this.playerArt.setPosition(this.body.x, this.body.y);
       this.jumpHeld = jumping;
     }
     update(_time: number, delta: number) {

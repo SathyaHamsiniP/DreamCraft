@@ -21,7 +21,7 @@ export function HomePage() {
             <Link to="/studio" className="button primary large">
               Create a game <span>→</span>
             </Link>
-            <Link to="/studio?sample=flat" className="button large">
+            <Link to="/studio?sample=trail" className="button large">
               Try sample level ▷
             </Link>
           </div>

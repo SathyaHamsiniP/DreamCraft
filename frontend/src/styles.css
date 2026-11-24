@@ -1331,3 +1331,104 @@ dialog .actions {
     animation: none !important;
   }
 }
+
+.game-stage {
+  position: relative;
+}
+.game-stage .game-container {
+  margin-bottom: 0;
+  background: #dff3ff;
+}
+.game-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  pointer-events: none;
+  background: #20395012;
+  border-radius: 8px;
+}
+.game-message {
+  max-width: 400px;
+  text-align: center;
+  padding: 25px 28px;
+  border: 1px solid #ffffff;
+  border-radius: 16px;
+  background: #ffffffed;
+  box-shadow: 0 15px 45px #204a6b20;
+}
+.game-message h3 {
+  font-size: 1.65rem;
+  margin: 8px 0 12px;
+}
+.game-message p {
+  font-size: 0.83rem;
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+.game-message small {
+  font-size: 0.72rem;
+  color: #4e6483;
+}
+.game-overlay.completed .eyebrow {
+  color: #297754;
+}
+.game-overlay.dead .eyebrow {
+  color: #b23b4c;
+}
+.game-guide {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 20px 0;
+}
+.game-guide div {
+  padding: 12px 15px;
+  border-radius: 9px;
+  background: #f3f7fc;
+}
+.game-guide b {
+  display: block;
+  font-size: 0.75rem;
+  color: #304969;
+  margin-bottom: 5px;
+}
+.game-guide span {
+  display: block;
+  font-size: 0.72rem;
+  color: #5e718c;
+}
+.coin-counter {
+  color: #805c0e;
+}
+.game-stats [data-testid="game-state"] {
+  text-transform: capitalize;
+}
+@media (max-width: 700px) {
+  .game-guide {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 12px 0;
+  }
+  .game-message {
+    padding: 12px 16px;
+  }
+  .game-message h3 {
+    font-size: 1.1rem;
+    margin: 5px 0;
+  }
+  .game-message p {
+    font-size: 0.68rem;
+    line-height: 1.45;
+    margin-bottom: 0;
+  }
+  .game-message small {
+    display: none;
+  }
+  .game-message .eyebrow {
+    font-size: 0.53rem;
+    margin: 0;
+  }
+}

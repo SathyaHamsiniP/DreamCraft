@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "world": {
+    "width": 960,
+    "height": 540
+  },
+  "objects": [
+    {
+      "id": "start-ledge",
+      "type": "platform",
+      "x": 0,
+      "y": 460,
+      "width": 280,
+      "height": 24
+    },
+    {
+      "id": "finish-ledge",
+      "type": "platform",
+      "x": 365,
+      "y": 420,
+      "width": 595,
+      "height": 24
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 50,
+      "y": 430,
+      "width": 20,
+      "height": 30
+    },
+    {
+      "id": "goal",
+      "type": "goal",
+      "x": 875,
+      "y": 384,
+      "width": 24,
+      "height": 36
+    },
+    {
+      "id": "spike",
+      "type": "spike",
+      "x": 590,
+      "y": 396,
+      "width": 28,
+      "height": 24
+    },
+    {
+      "id": "coin-0",
+      "type": "coin",
+      "x": 145,
+      "y": 432,
+      "width": 16,
+      "height": 16
+    },
+    {
+      "id": "coin-1",
+      "type": "coin",
+      "x": 295,
+      "y": 370,
+      "width": 16,
+      "height": 16
+    },
+    {
+      "id": "coin-2",
+      "type": "coin",
+      "x": 455,
+      "y": 392,
+      "width": 16,
+      "height": 16
+    },
+    {
+      "id": "coin-3",
+      "type": "coin",
+      "x": 740,
+      "y": 392,
+      "width": 16,
+      "height": 16
+    }
+  ]
+}

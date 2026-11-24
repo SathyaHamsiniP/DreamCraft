@@ -95,7 +95,7 @@ export function LevelsPage() {
           <span aria-hidden="true">▧</span>
           <h2>No saved levels here yet</h2>
           <p>Start with a sample or turn a drawing into a game.</p>
-          <Link to="/studio?sample=flat" className="button primary">
+          <Link to="/studio?sample=trail" className="button primary">
             Try a sample game
           </Link>
         </section>

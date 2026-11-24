@@ -63,7 +63,7 @@ test('bad JSON is rejected without losing the current level', async ({ page }) =
   await expect(page.locator('#status')).toContainText('Cannot load level'); expect((await state(page)).state).toBe('ready');
 });
 
-for (const name of ['flat', 'one-jump', 'multi-jump', 'coins', 'spikes', 'edge-horizontal', 'edge-vertical-low']) {
+for (const name of ['flat', 'one-jump', 'multi-jump', 'coins', 'spikes', 'edge-horizontal', 'edge-vertical-low', 'sky-trail']) {
   test(`saved ${name} route replays in Phaser`, async ({ page, request }, testInfo) => {
     const { readFileSync } = await import('node:fs');
     const level = JSON.parse(readFileSync(new URL(`../../contracts/examples/${name}.json`, import.meta.url), 'utf8'));

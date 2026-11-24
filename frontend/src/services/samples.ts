@@ -1,3 +1,4 @@
+import trail from "../../../contracts/examples/sky-trail.json";
 import flat from "../../../contracts/examples/flat.json";
 import coins from "../../../contracts/examples/coins.json";
 import jump from "../../../contracts/examples/one-jump.json";
@@ -6,8 +7,15 @@ import high from "../../../contracts/examples/high-goal.json";
 import { parseLevel } from "../../../game/src/contracts";
 export const samples = [
   {
+    id: "trail",
+    name: "Sky trail · jump and collect",
+    description:
+      "Cross the gap, jump over spikes, and reach the flag. Coins are optional bonuses.",
+    level: trail,
+  },
+  {
     id: "flat",
-    name: "First steps",
+    name: "Walking practice · no obstacles",
     description: "A clear path to your first finish.",
     level: flat,
   },

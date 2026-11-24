@@ -426,7 +426,7 @@ export function StudioPage() {
                 </>
               ) : (
                 !hasEditor && (
-                  <Link className="button primary" to="/studio?sample=flat">
+                  <Link className="button primary" to="/studio?sample=trail">
                     Try a sample game →
                   </Link>
                 )
