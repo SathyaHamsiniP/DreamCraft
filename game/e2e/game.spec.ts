@@ -138,3 +138,89 @@ for (const name of ['wide-gap', 'high-goal', 'blocked-jump', 'edge-vertical']) {
     // A failed keyboard attempt is evidence about this attempt, not a proof.
   });
 }
+
+for (const [gap, rise] of [[35, 0], [55, 20], [65, 30], [40, -20]]) {
+  test(`reviewed sketch with gap ${gap} and rise ${rise} replays and stays saved`, async ({ page, request }) => {
+    const objects = [
+      { id: 'left', type: 'platform', x: 0, y: 460, width: 260, height: 20 },
+      { id: 'right', type: 'platform', x: 260 + gap, y: 460 - rise, width: 500, height: 20 },
+      { id: 'spawn', type: 'spawn', x: 50, y: 430, width: 20, height: 30 },
+      { id: 'goal', type: 'goal', x: 650, y: 424 - rise, width: 24, height: 36 },
+    ].map(o => ({ ...o, reviewed: true }));
+    const converted = await request.post('http://127.0.0.1:8001/api/sketch/reviewed-level', {
+      data: { image_width: 960, image_height: 540, world_width: 960, world_height: 540, objects },
+    });
+    expect(converted.ok()).toBe(true);
+    const { level } = await converted.json();
+    const saved = await (await request.post('http://127.0.0.1:8001/api/levels', { data: level })).json();
+    const assessment = await (await request.post(`http://127.0.0.1:8001/api/levels/${saved.id}/validate`)).json();
+    expect(assessment.status).toBe('reachable');
+    await page.evaluate(level => window.dreamcraft.loadLevel(level), level);
+    await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    await expect.poll(async () => (await snapshot(page))?.state).toBe('ready');
+    await page.evaluate(() => window.dreamcraft.start());
+    for (const action of assessment.path) await page.evaluate(a => window.dreamcraft.step(a.frames, a), action);
+    expect((await state(page)).state).toBe('completed');
+    expect((await (await request.get(`http://127.0.0.1:8001/api/levels/${saved.id}`)).json()).level).toEqual(level);
+  });
+}
+
+test('real-time physics applies movement once per tick and accepts midair direction changes', async ({ page }) => {
+  await page.goto('/?test=live');
+  await expect.poll(() => snapshot(page)).not.toBeNull();
+  await load(page, 'flat');
+  await page.evaluate(() => window.dreamcraft.start());
+  await expect.poll(async () => (await state(page)).grounded).toBe(true);
+  await page.keyboard.down('Space');
+  await expect.poll(async () => (await state(page)).y).toBeLessThan(420);
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => (await state(page)).vx).toBe(180);
+  const first = await state(page);
+  await expect.poll(async () => (await state(page)).ticks).toBeGreaterThan(first.ticks + 6);
+  const last = await state(page);
+  expect(last.x - first.x).toBeCloseTo((last.ticks - first.ticks) * 3, 3);
+  await page.keyboard.up('Space'); await page.keyboard.up('ArrowRight');
+  await expect.poll(async () => (await state(page)).grounded).toBe(true);
+});
+
+test('a jump just after the platform edge still lands safely', async ({ page }) => {
+  await load(page, 'one-jump'); await start(page);
+  await page.keyboard.down('ArrowRight'); await step(page, 72);
+  expect((await state(page)).x).toBe(266);
+  expect((await state(page)).grounded).toBe(false);
+  await page.keyboard.down('Space'); await step(page, 1);
+  expect((await state(page)).vy).toBe(-345);
+  await step(page, 45);
+  expect((await state(page)).grounded).toBe(true);
+  expect((await state(page)).x).toBeGreaterThan(320);
+  await page.keyboard.up('ArrowRight'); await page.keyboard.up('Space');
+});
+
+for (const name of ['one-jump', 'sky-trail']) {
+  test(`${name} reaches the goal with real-time keyboard controls`, async ({ page }) => {
+    await page.goto('/?test=live'); await expect.poll(() => snapshot(page)).not.toBeNull();
+    await load(page, name); await page.evaluate(() => window.dreamcraft.start());
+    await page.keyboard.down('ArrowRight');
+    await expect.poll(async () => (await state(page)).x, { intervals: [16] }).toBeGreaterThan(230);
+    await page.keyboard.down('Space');
+    await expect.poll(async () => (await state(page)).vy, { intervals: [16] }).toBeLessThan(0);
+    await page.keyboard.up('Space');
+    await expect.poll(async () => (await state(page)).grounded, { intervals: [16] }).toBe(true);
+    if (name === 'sky-trail') {
+      await expect.poll(async () => (await state(page)).x, { intervals: [16] }).toBeGreaterThan(540);
+      await page.keyboard.down('Space');
+      await expect.poll(async () => (await state(page)).vy, { intervals: [16] }).toBeLessThan(0);
+      await page.keyboard.up('Space');
+    }
+    await expect.poll(async () => (await state(page)).state).toBe('completed');
+    await page.keyboard.up('ArrowRight');
+  });
+}
+
+test('short start and jump taps survive keyup before the next physics tick', async ({ page }) => {
+  await page.keyboard.press('Enter'); await step(page, 2);
+  expect((await state(page)).state).toBe('playing');
+  await step(page, 2);
+  await page.keyboard.press('Space'); await step(page, 1);
+  expect((await state(page)).vy).toBe(-345);
+});

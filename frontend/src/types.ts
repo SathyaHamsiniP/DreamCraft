@@ -37,7 +37,9 @@ export interface CheckResult {
   search: Record<string, number | boolean>;
   warnings?: string[];
   physics_version: string;
-  path: unknown[] | null;
+  path: import("./services/replay").RouteAction[] | null;
+  suggestions?: string[];
+  difficulty?: { status: string; note?: string };
 }
 export interface Draft {
   boxes: Box[];

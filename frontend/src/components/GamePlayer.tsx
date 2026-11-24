@@ -9,6 +9,7 @@ export function GamePlayer({ level }: { level: Level }) {
     state: "ready",
     score: 0,
   });
+  const [position, setPosition] = useState("");
   const [loading, setLoading] = useState(true),
     [error, setError] = useState("");
   useEffect(() => {
@@ -20,6 +21,10 @@ export function GamePlayer({ level }: { level: Level }) {
     const parent = document.createElement("div");
     parent.className = "phaser-host";
     container.current!.append(parent);
+    const monitor = setInterval(() => {
+      const s = game?.snapshot?.();
+      if (s && active) setPosition(`X ${Math.round(s.x)}, Y ${Math.round(s.y)} · ${s.grounded ? "on platform" : "in air"}`);
+    }, 100);
     loadEngine()
       .then(({ mountGame }) => {
         if (!active) return;
@@ -42,6 +47,7 @@ export function GamePlayer({ level }: { level: Level }) {
       });
     return () => {
       active = false;
+      clearInterval(monitor);
       handle.current = null;
       game?.destroy();
       parent.remove();
@@ -81,6 +87,7 @@ export function GamePlayer({ level }: { level: Level }) {
           ref={container}
           className="game-container"
           tabIndex={0}
+          onPointerDown={() => container.current?.focus()}
           aria-label="Game area. Use arrow keys to move and Space to jump."
         />
         {!loading && !error && event.state !== "playing" && (
@@ -162,6 +169,7 @@ export function GamePlayer({ level }: { level: Level }) {
           ← → or A / D to move · Space to jump · Enter to start · R to restart
         </small>
       </div>
+      <details><summary>Player position</summary><output aria-label="Player position">{position}</output></details>
       <p className="hint">
         Click Start game to focus the game. All sketch levels use these controls
         and this visual style; your reviewed objects decide the layout. Playing

@@ -114,7 +114,7 @@ def test_saved_level_validation(client, level):
     result = client.post('/api/levels/' + record['id'] + '/validate')
     assert result.status_code == 200
     assert result.json()['status'] == 'reachable'
-    assert result.json()['physics_version'] == '1.0'
+    assert result.json()['physics_version'] == '1.1'
     assert result.json()['verified_in_game'] is False
 
 
@@ -154,3 +154,18 @@ def test_studio_preview_and_cors(client):
     assert client.post('/api/sketch/preview', files={'file': ('large.png', b'x' * (MAX_FILE_BYTES+1))}).status_code == 413
     allowed = client.options('/api/sketch/preview', headers={'Origin': 'http://localhost:5174', 'Access-Control-Request-Method': 'POST'})
     assert allowed.headers['access-control-allow-origin'] == 'http://localhost:5174'
+
+
+def test_unsaved_assessment_does_not_change_storage(tmp_path):
+    from fastapi.testclient import TestClient
+    from backend.app.main import create_app
+    from contracts import ROOT
+    import json
+    level = json.loads((ROOT / 'examples' / 'flat.json').read_text())
+    with TestClient(create_app(tmp_path / 'assessment.sqlite3')) as client:
+        result = client.post('/api/levels/assess', json=level)
+        assert result.status_code == 200
+        assert result.json()['status'] == 'reachable'
+        assert not result.json()['verified_in_game']
+        assert client.get('/api/levels').json() == []
+        assert client.post('/api/levels/assess', json={}).status_code == 422

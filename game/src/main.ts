@@ -24,7 +24,7 @@ document.querySelector<HTMLInputElement>('#file')!.addEventListener('change', as
   if (file.size > 200_000) { status.textContent = 'Level file is too large'; return; }
   try { load(JSON.parse(await file.text())); } catch { status.textContent = 'Cannot read level JSON'; }
 });
-if (new URLSearchParams(location.search).get('test') === '1') (window as unknown as { dreamcraft: GameHandle }).dreamcraft = handle;
+if (new URLSearchParams(location.search).has('test')) (window as unknown as { dreamcraft: GameHandle }).dreamcraft = handle;
 window.addEventListener('pagehide', () => handle.destroy(), { once: true });
 
 const api = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';

@@ -16,9 +16,9 @@
     {
       "id": "finish-ledge",
       "type": "platform",
-      "x": 365,
+      "x": 345,
       "y": 420,
-      "width": 595,
+      "width": 615,
       "height": 24
     },
     {

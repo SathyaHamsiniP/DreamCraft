@@ -19,6 +19,8 @@ class State:
     vy: float = 0
     grounded: bool = False
     jump_held: bool = False
+    coyote: int = 0
+    jump_buffer: int = 0
 
 
 def rectangle(state):
@@ -28,7 +30,12 @@ def rectangle(state):
 def advance(level, state, direction, jump):
     """Approximate one Arcade step with solid rectangles and edge-triggered jump."""
     old = rectangle(state)
-    vy = P['jump_velocity'] if jump and not state.jump_held and state.grounded else state.vy
+    coyote = P['coyote_ticks'] if state.grounded else max(0, state.coyote - 1)
+    buffer = P['jump_buffer_ticks'] if jump and not state.jump_held else max(0, state.jump_buffer - 1)
+    launch = buffer > 0 and (state.grounded or coyote > 0)
+    vy = P['jump_velocity'] if launch else state.vy
+    if launch:
+        coyote, buffer = 0, 0
     vy = min(vy + P['gravity'] * DT, P['max_fall_speed'])
     x = min(max(state.x + direction * P['speed'] * DT, 0), level['world']['width'] - P['player_width'])
     y = state.y + vy * DT
@@ -50,12 +57,37 @@ def advance(level, state, direction, jump):
         else:
             # Corner cases are not reliable enough to search through.
             return None, 'ambiguous_collision'
-    result = State(x, y, vy, grounded, jump)
+    result = State(x, y, vy, grounded, jump, coyote, buffer)
     if y >= level['world']['height'] or any(overlaps(rectangle(result), o) for o in level['objects'] if o['type'] == 'spike'):
         return None, 'dead'
     if any(overlaps(rectangle(result), o) for o in level['objects'] if o['type'] == 'goal'):
         return result, 'won'
     return result, 'playing'
+
+
+def timing_assessment(level, path):
+    """Probe jump timing in the approximation; this is not a human difficulty rating."""
+    spawn = next(o for o in level['objects'] if o['type'] == 'spawn')
+    passed = []
+    for offset in (-3, 3):
+        actions = [dict(a) for a in path]
+        for i in range(1, len(actions)):
+            if actions[i]['jump'] and not actions[i-1]['jump']:
+                amount = max(1-actions[i-1]['frames'], min(offset, actions[i]['frames']-1))
+                actions[i-1]['frames'] += amount
+                actions[i]['frames'] -= amount
+        state, outcome = State(spawn['x'], spawn['y']), 'playing'
+        for action in actions:
+            for _ in range(action['frames']):
+                state, outcome = advance(level, state, action['direction'], action['jump'])
+                if outcome != 'playing':
+                    break
+            if outcome != 'playing':
+                break
+        passed.append(outcome == 'won')
+    return {'status': 'timing_margin' if all(passed) else 'timing_sensitive',
+            'tested_offset_frames': 3, 'source': 'python_approximation',
+            'note': 'Jump timing was shifted by up to three frames. This does not measure player skill or prove an easy route.'}
 
 
 def max_jump_rise():
@@ -78,8 +110,20 @@ def check_playability(level, max_states=20000, max_seconds=3.0, max_ticks=1800):
     warnings = ['The Python collision model is approximate. A returned route needs replay in Phaser.']
     info = {'expanded': 0, 'limit_reached': False, 'max_states': max_states, 'max_ticks': max_ticks, 'max_seconds': max_seconds}
 
+    suggestions = []
+    ordered = sorted(platforms, key=lambda p: p['x'])
+    for left, right in zip(ordered, ordered[1:]):
+        gap = right['x'] - left['x'] - left['width']
+        if gap > 100:
+            suggestions.append(f"The gap between {left['id']} and {right['id']} is {gap:g} units. Consider adding a platform or reducing this gap; other routes may exist.")
+        rise = left['y'] - right['y']
+        if rise > max_jump_rise():
+            suggestions.append(f"The platform {right['id']} is {rise:g} units higher than {left['id']}. Consider an intermediate step or lowering it.")
+    if not any(p['x'] < spawn['x'] + P['player_width'] and p['x'] + p['width'] > spawn['x'] and abs(p['y'] - spawn['y'] - P['player_height']) < 1 for p in platforms):
+        suggestions.append('Spawn is not resting on a platform. Review where the player will fall before the first jump.')
+
     def report(status, reason, path=None):
-        return {'status': status, 'reason': reason, 'warnings': warnings, 'search': {**info, 'elapsed_ms': round((time.monotonic() - started) * 1000)}, 'physics_version': P['version'], 'verified_in_game': False, 'path': path}
+        return {'status': status, 'reason': reason, 'warnings': warnings, 'search': {**info, 'elapsed_ms': round((time.monotonic() - started) * 1000)}, 'physics_version': P['version'], 'verified_in_game': False, 'path': path, 'suggestions': suggestions, 'difficulty': timing_assessment(level, path) if path else {'status': 'not_assessed'}}
 
     # Even granting access to every platform, no jump can put the player's top
     # above this bound. The continuous rise is larger than the discrete rise,
@@ -98,7 +142,7 @@ def check_playability(level, max_states=20000, max_seconds=3.0, max_ticks=1800):
     depth_limited = False
 
     def key(s):
-        return (round(s.x / 6), round(s.y / 6), round(s.vy / 30), s.grounded, s.jump_held)
+        return (round(s.x / 6), round(s.y / 6), round(s.vy / 30), s.grounded, s.jump_held, s.coyote, s.jump_buffer)
 
     while queue:
         if info['expanded'] >= max_states or time.monotonic() - started >= max_seconds:

@@ -149,6 +149,11 @@ def create_app(db_path=None):
             raise HTTPException(404, 'Level not found')
         return record
 
+    @app.post('/api/levels/assess', summary='Check an unsaved level without changing storage')
+    def assess(level: LevelBody):
+        from playability.validator import check_playability
+        return check_playability(level.root)
+
     @app.get('/api/levels/{level_id}')
     def get_level(level_id: str):
         return get_or_404(level_id)
