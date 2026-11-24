@@ -1,9 +1,20 @@
 import Phaser from "phaser";
 import type { LevelObject } from "./contracts";
 
+const runnerUrl = new URL('../assets/runner/skater.png', import.meta.url).href;
+const barrierUrl = new URL('../assets/runner/barrier.png', import.meta.url).href;
+
+export function loadArtwork(scene: Phaser.Scene) {
+  if (!scene.textures.exists('skater')) scene.load.spritesheet('skater', runnerUrl, { frameWidth: 96, frameHeight: 128 });
+  if (!scene.textures.exists('barrier')) scene.load.image('barrier', barrierUrl);
+}
+
 // Decorative light can extend past an object. Solid artwork follows its collision box.
 export function drawBackdrop(scene: Phaser.Scene) {
   const sky = scene.add.graphics().setScrollFactor(0).setDepth(-20);
+  // Keep the background fitted to the screen while the gameplay camera follows the runner.
+  const camera = scene.cameras.main;
+  sky.setScale(1 / camera.zoom).setPosition(camera.width * (1 - 1 / camera.zoom) / 2, camera.height * (1 - 1 / camera.zoom) / 2);
   const bands = [0x0b122c, 0x101936, 0x171f42, 0x20264c, 0x2d3157, 0x3c3860];
   bands.forEach((color, i) => sky.fillStyle(color).fillRect(0, i*90, 960, 91));
   for (let i = 0; i < 65; i++) {
@@ -53,20 +64,11 @@ export function drawObject(scene: Phaser.Scene, object: LevelObject) {
     g.fillStyle(0xa97221).fillPoints([{x:w*.5,y:h*.24},{x:w*.67,y:h*.5},{x:w*.5,y:h*.76},{x:w*.33,y:h*.5}],true);
     scene.tweens.add({ targets: glow, alpha: .35, duration: 800, yoyo: true, repeat: -1 });
   } else if (type === "spike") {
-    g.fillStyle(0xf04d57,.15).fillRoundedRect(-3,-3,w+6,h+6,5);
-    // A low armored mound with teeth, rather than an oversized triangle.
-    g.fillStyle(0x4b2033).fillRoundedRect(0,h*.3,w,h*.7,Math.min(5,h*.2));
-    const teeth = Math.max(3, Math.round(w/12));
-    for (let i = 0; i < teeth; i++) {
-      const x = w*i/teeth, tw = w/teeth;
-      const tip = i%2 ? h*.08 : 0;
-      g.fillStyle(i%2 ? 0xffb069 : 0xf97065).fillTriangle(x,h*.55,x+tw*.5,tip,x+tw,h*.55);
-      g.lineStyle(1,0xffdb9a).lineBetween(x+tw*.5,tip+2,x+tw*.75,h*.4);
-    }
-    g.fillStyle(0xe44b50).fillRoundedRect(1,h*.46,w-2,h*.43,3);
-    g.fillStyle(0x291c32).fillRect(0,h*.8,w,h*.2);
-    for (let x = 3; x < w-3; x += 9) g.fillStyle(0xf8c36a).fillRect(x,h*.84,4,h*.1);
-    g.fillStyle(0xffecbb).fillRect(w*.35,h*.55,Math.max(2,w*.1),2).fillRect(w*.61,h*.55,Math.max(2,w*.1),2);
+    g.fillStyle(0xf04d57,.18).fillRoundedRect(-3,-3,w+6,h+6,4);
+    art.add(scene.add.image(w/2, h/2, 'barrier').setDisplaySize(w, h));
+    const warning = scene.add.graphics().fillStyle(0xffc84c).fillCircle(w/2, -2, 2);
+    art.add(warning);
+    scene.tweens.add({ targets: warning, alpha: .35, duration: 500, yoyo: true, repeat: -1 });
   } else if (type === "goal") {
     const glow = scene.add.graphics().fillStyle(0xa478ff,.18).fillEllipse(w/2,h/2,w+18,h+14);
     art.addAt(glow,0);
@@ -82,24 +84,15 @@ export function drawObject(scene: Phaser.Scene, object: LevelObject) {
   return art;
 }
 
-export function paintRunner(g: Phaser.GameObjects.Graphics, w: number, h: number, ticks=0, moving=false, grounded=true) {
-  g.clear();
-  const sx=w/20, sy=h/30;
-  const rect=(x:number,y:number,rw:number,rh:number,c:number) => g.fillStyle(c).fillRect(x*sx,y*sy,rw*sx,rh*sy);
-  const stride = grounded && moving ? Math.floor(ticks/6)%2 : 0;
-  // Original tiny lizard runner. All solid parts stay within the player rectangle.
-  rect(7,3,12,9,0x102f3d); rect(8,2,10,10,0x6fe2b5); rect(15,7,5,6,0x6fe2b5);
-  rect(15,4,3,3,0xf5fff1); rect(17,5,1,2,0x102f3d); rect(17,11,3,1,0x102f3d);
-  rect(6,12,10,11,0x102f3d); rect(7,12,8,12,0x42bf9b); rect(11,15,4,7,0xb2f1bd);
-  rect(2,17,6,5,0x42bf9b); rect(0,15,3,4,0x6fe2b5); rect(4,15,3,4,0x42bf9b);
-  rect(5,9,3,3,0x94ebba); rect(4,13,3,3,0x94ebba);
-  rect(7,12,9,3,0xffbd73); rect(3,13,5,2,0xef755d);
-  rect(14,16,4,3,0x278975);
-  const ly=grounded ? 24+stride*2 : 23, ry=grounded ? 26-stride*2 : 25;
-  rect(7,ly,3,30-ly,0x267b70); rect(6,28,5,2,0xe5e8c7);
-  rect(12,ry,3,30-ry,0x267b70); rect(12,28,5,2,0xe5e8c7);
+export function poseRunner(sprite: Phaser.GameObjects.Sprite, ticks: number, moving: boolean, grounded: boolean, vy: number, state: string) {
+  const frame = state === 'dead' ? 21 : !grounded && state === 'playing'
+    ? vy < 0 ? 19 : 21
+    : moving ? 8 + Math.floor(ticks / 4) % 8 : Math.floor(ticks / 12) % 8;
+  sprite.setFrame(frame).setTint(state === 'dead' ? 0xe99898 : 0xffffff);
 }
 
 export function drawPlayer(scene: Phaser.Scene, width: number, height: number) {
-  const g=scene.add.graphics().setDepth(5); paintRunner(g,width,height); return g;
+  // Keep the feet on the body baseline. Sleeve and shoe motion is decorative.
+  return scene.add.sprite(0, 0, 'skater', 0).setOrigin(.5, .94)
+    .setDisplaySize(width * 1.4, height * 1.2).setDepth(5);
 }

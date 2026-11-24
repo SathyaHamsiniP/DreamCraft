@@ -68,3 +68,14 @@ it("does not show a pointless coin counter on a level with no coins", async () =
   expect(screen.queryByTestId("coin-score")).not.toBeInTheDocument();
   expect(screen.getByText(/This level has no coins/)).toBeInTheDocument();
 });
+
+it("shows an artwork loading error and keeps play controls disabled", async () => {
+  mountGame.mockImplementation((_parent, _level, options) => {
+    options.onError('Game artwork could not load. Refresh the page to try again.');
+    return { destroy: vi.fn(), start: vi.fn(), restart: vi.fn() };
+  });
+  render(<GamePlayer level={sampleLevel("flat")} />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Game artwork could not load');
+  expect(screen.getByRole('button', { name: 'Start game' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Restart' })).toBeDisabled();
+});

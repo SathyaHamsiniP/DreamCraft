@@ -30,6 +30,9 @@ export function GamePlayer({ level }: { level: Level }) {
         if (!active) return;
         game = mountGame(parent, level, {
           keyboardTarget: container.current!,
+          onError: (message) => {
+            if (active) { setError(message); setLoading(false); }
+          },
           onEvent: (next) => {
             if (active) {
               setEvent(next);
@@ -113,7 +116,7 @@ export function GamePlayer({ level }: { level: Level }) {
                     ? `You collected ${event.score} of ${totalCoins} bonus coins. Coins are optional — reaching the flag wins the level.`
                     : "You reached the glowing finish portal. Nice work!"
                   : event.state === "dead"
-                    ? "Avoid the red spikes and jump across gaps. Restart to try again."
+                    ? "Jump over red barriers and across gaps. Restart to try again."
                     : "Move right, jump between platforms, and touch the glowing finish portal."}
               </p>
               {event.state === "ready" && (
@@ -132,12 +135,12 @@ export function GamePlayer({ level }: { level: Level }) {
         <div>
           <b>01 · Move & jump</b>
           <span>
-            You are the teal lizard runner. ← → or A / D moves. Space, W or ↑ jumps.
+            You are the skater runner. ← → or A / D moves. Space, W or ↑ jumps.
           </span>
         </div>
         <div>
           <b>02 · Watch your step</b>
-          <span>Land on platforms. Gaps and red spikes end a run.</span>
+          <span>Land on platforms. Gaps and red barriers end a run.</span>
         </div>
         <div>
           <b>03 · Find the finish</b>

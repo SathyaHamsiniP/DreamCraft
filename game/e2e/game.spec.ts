@@ -224,3 +224,41 @@ test('short start and jump taps survive keyup before the next physics tick', asy
   await page.keyboard.press('Space'); await step(page, 1);
   expect((await state(page)).vy).toBe(-345);
 });
+
+test('local runner artwork has visible idle, run and jump frames and is reused on restart', async ({ page }, testInfo) => {
+  const artwork = await page.evaluate(async () => {
+    const urls = performance.getEntriesByType('resource').map(e => e.name);
+    const url = urls.find(u => u.endsWith('/skater.png'))!;
+    const image = new Image(); image.src = url; await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width; canvas.height = image.height;
+    const context = canvas.getContext('2d')!; context.drawImage(image, 0, 0);
+    const frames = Array.from({ length: 24 }, (_, n) => {
+      const pixels = context.getImageData(n % 8 * 96, Math.floor(n / 8) * 128, 96, 128).data;
+      let visible = 0, shape = 0;
+      for (let i = 3; i < pixels.length; i += 4) {
+        if (pixels[i] > 128) { visible++; shape = (Math.imul(shape, 31) + i) | 0; }
+      }
+      return { visible, shape };
+    });
+    return { url, width: image.width, height: image.height, frames,
+      barriers: urls.filter(u => u.endsWith('/barrier.png')).length };
+  });
+  expect(new URL(artwork.url).origin).toBe(new URL(page.url()).origin);
+  expect([artwork.width, artwork.height]).toEqual([768, 384]);
+  expect(artwork.frames.every(f => f.visible > 500)).toBe(true);
+  expect(new Set(artwork.frames.slice(8, 16).map(f => f.shape)).size).toBeGreaterThan(5);
+  expect(artwork.frames[0].shape).not.toBe(artwork.frames[19].shape);
+  expect(artwork.barriers).toBe(1);
+  const downloads = () => page.evaluate(() => performance.getEntriesByType('resource').filter(e => /\/(skater|barrier)\.png$/.test(e.name)).length);
+  const loaded = await downloads();
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => window.dreamcraft.restart());
+    await expect.poll(() => snapshot(page)).not.toBeNull();
+  }
+  expect(await downloads()).toBe(loaded);
+  await load(page, 'sky-trail'); await start(page);
+  await page.keyboard.down('ArrowRight'); await step(page, 15); await page.keyboard.up('ArrowRight');
+  await page.locator('canvas').screenshot({ path: testInfo.outputPath('skater-game.png') });
+  await testInfo.attach('skater-game', { path: testInfo.outputPath('skater-game.png'), contentType: 'image/png' });
+});

@@ -20,9 +20,12 @@ Open the local Vite address shown in the terminal. Choose a sample and click Loa
 - Space, W or up arrow jumps. Release the jump key before jumping again. A new jump only works while standing on a platform.
 - R restarts from the original spawn, including after death or victory.
 
-The states are `ready`, `playing`, `dead` and `completed`. Touch a red spike or fall below the world to die. The game waits for R instead of restarting automatically. Touch the green goal to win; movement stays frozen until restart. Yellow coins disappear on contact and each adds one point. Coins are optional for winning.
+The states are `ready`, `playing`, `dead` and `completed`. Touch a red barrier or fall below the world to die. The game waits for R instead of restarting automatically. Touch the purple goal portal to win; movement stays frozen until restart. Yellow coins disappear on contact and each adds one point. Coins are optional for winning.
 
-The player is blue, platforms are dark grey, coins are yellow, spikes are red triangles and the goal is green. All collision bodies are rectangles, including spikes. See the [shared rules](../contracts/README.md) for exact coordinates and hitboxes.
+The player is a cartoon skater runner. Platforms are dark grey, coins are gold,
+and the triangle symbol becomes a red and white road barrier. It keeps the internal
+`spike` class and its rectangular hazard body. See [artwork credits](ART.md) and the
+[shared rules](../contracts/README.md) for sources, coordinates and hitboxes.
 
 ## Files
 

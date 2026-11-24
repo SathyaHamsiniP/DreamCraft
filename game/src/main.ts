@@ -11,6 +11,7 @@ select.value = new URLSearchParams(location.search).get('test') === '1' ? 'flat'
 const status = document.querySelector<HTMLElement>('#status')!;
 const handle = mountGame(document.querySelector<HTMLElement>('#game')!, levels[select.value], {
   manual: new URLSearchParams(location.search).get('test') === '1',
+  onError: message => { status.textContent = message; },
   onEvent: event => { status.textContent = `${event.state} · coins: ${event.score}${event.state === 'dead' ? ' · press R to restart' : ''}`; },
 });
 function load(data: unknown) {
