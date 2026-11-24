@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "gravity": 900,
   "speed": 180,
   "jump_velocity": -360,
@@ -14,5 +14,7 @@
     "hazards": "rectangles",
     "world_sides": "solid",
     "world_bottom": "death"
-  }
+  },
+  "coyote_ticks": 5,
+  "jump_buffer_ticks": 6
 }

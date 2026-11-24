@@ -16,6 +16,10 @@ export function Playability({ result }: { result: CheckResult }) {
       {result.status === "reachable" && !result.verified_in_game && (
         <p>This route has not been verified in Phaser for this request.</p>
       )}
+      {result.verified_in_game && <p>The route reached the goal in an actual Phaser replay.</p>}
+      {result.difficulty && <p>Timing check: {result.difficulty.status.replaceAll("_", " ")}. {result.difficulty.note}</p>}
+      {result.suggestions?.map(s => <p key={s}>{s}</p>)}
+      {(result.status === "unknown" || result.status === "unreachable") && <p>Go back to the editor to move or resize objects, add a platform, or lower the goal. Create the level again to recheck. Your drawing is not changed automatically.</p>}
       {result.status === "unknown" && (
         <p>
           This does not mean the level is impossible. Try it in the game and

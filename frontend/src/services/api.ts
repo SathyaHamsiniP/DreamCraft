@@ -95,6 +95,7 @@ function record(value: LevelRecord): LevelRecord {
   return { ...value, level: parseLevel(value.level) };
 }
 export const api = {
+  assess(level: Level) { return request<CheckResult>("/api/levels/assess", json(parseLevel(level))); },
   async list(offset = 0, signal?: AbortSignal) {
     return (
       await request<LevelRecord[]>(`/api/levels?offset=${offset}`, { signal })

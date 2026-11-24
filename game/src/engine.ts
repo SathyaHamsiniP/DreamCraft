@@ -7,7 +7,7 @@ export interface GameEvent { type: 'state' | 'coin'; state: GameState; score: nu
 export interface Snapshot { state: GameState; score: number; x: number; y: number; vx: number; vy: number; grounded: boolean; ticks: number }
 export interface GameHandle {
   loadLevel(value: unknown): void; restart(): void; start(): void;
-  snapshot(): Snapshot | null; step(frames: number): void; destroy(): void;
+  snapshot(): Snapshot | null; step(frames: number, input?: { direction: number; jump: boolean }): void; destroy(): void;
 }
 interface MountOptions { onEvent?: (event: GameEvent) => void; manual?: boolean; keyboardTarget?: HTMLElement }
 
@@ -21,12 +21,14 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
     coinArt = new Map<Phaser.GameObjects.GameObject, Phaser.GameObjects.Container>();
     keys!: Record<string, Phaser.Input.Keyboard.Key>;
     state: GameState = 'ready';
-    score = 0; ticks = 0; accumulator = 0; jumpHeld = false;
+    score = 0; ticks = 0; accumulator = 0; jumpHeld = false; coyote = 0; jumpBuffer = 0;
+    jumpQueued = false; startQueued = false; restartQueued = false;
     get body() { return this.player.body as Phaser.Physics.Arcade.Body; }
     emitState() { options.onEvent?.({ type: 'state', state: this.state, score: this.score }); }
     create() {
       pending = false;
-      this.state = 'ready'; this.score = 0; this.ticks = 0; this.accumulator = 0; this.jumpHeld = false;
+      this.state = 'ready'; this.score = 0; this.ticks = 0; this.accumulator = 0; this.jumpHeld = false; this.coyote = 0; this.jumpBuffer = 0;
+      this.jumpQueued = false; this.startQueued = false; this.restartQueued = false;
       this.physics.world.setBounds(0, 0, current.world.width, current.world.height, true, true, true, false);
       this.cameras.main.setBounds(0, 0, current.world.width, current.world.height);
       drawBackdrop(this); this.coinArt.clear();
@@ -69,6 +71,17 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
         if (this.state === 'playing') { this.state = 'completed'; this.body.setVelocity(0, 0); this.body.enable = false; this.emitState(); }
       });
       this.keys = this.input.keyboard!.addKeys('A,D,W,LEFT,RIGHT,UP,SPACE,R,ENTER') as Record<string, Phaser.Input.Keyboard.Key>;
+      // Keep short taps until a physics tick, even if keyup arrives in the same render frame.
+      const keyboard = this.input.keyboard!;
+      const queueJump = () => { this.jumpQueued = true; };
+      const queueStart = () => { this.startQueued = true; };
+      const queueRestart = () => { this.restartQueued = true; };
+      for (const key of ['SPACE', 'W', 'UP']) keyboard.on(`keydown-${key}`, queueJump);
+      keyboard.on('keydown-ENTER', queueStart); keyboard.on('keydown-R', queueRestart);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        for (const key of ['SPACE', 'W', 'UP']) keyboard.off(`keydown-${key}`, queueJump);
+        keyboard.off('keydown-ENTER', queueStart); keyboard.off('keydown-R', queueRestart);
+      });
       this.cameras.main.startFollow(this.player, true); this.emitState();
     }
     start() { if (this.state === 'ready') { this.state = 'playing'; this.emitState(); } }
@@ -78,17 +91,23 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
     }
     fixedStep() {
       if (pending || !this.player || !this.keys) return;
-      if (Phaser.Input.Keyboard.JustDown(this.keys.R)) { pending = true; this.scene.restart(); return; }
-      if (Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) this.start();
+      if (this.restartQueued || Phaser.Input.Keyboard.JustDown(this.keys.R)) { pending = true; this.scene.restart(); return; }
+      if (this.startQueued || Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) this.start();
+      this.startQueued = false;
       const jumping = this.keys.SPACE.isDown || this.keys.W.isDown || this.keys.UP.isDown;
       if (this.state === 'playing') {
         const direction = Number(this.keys.D.isDown || this.keys.RIGHT.isDown) - Number(this.keys.A.isDown || this.keys.LEFT.isDown);
         this.body.setVelocityX(direction * P.speed);
-        if (jumping && !this.jumpHeld && this.body.blocked.down) this.body.setVelocityY(P.jump_velocity);
+        this.coyote = this.body.blocked.down ? P.coyote_ticks : Math.max(0, this.coyote - 1);
+        this.jumpBuffer = this.jumpQueued || (jumping && !this.jumpHeld) ? P.jump_buffer_ticks : Math.max(0, this.jumpBuffer - 1);
+        if (this.jumpBuffer > 0 && (this.body.blocked.down || this.coyote > 0)) {
+          this.body.setVelocityY(P.jump_velocity); this.coyote = 0; this.jumpBuffer = 0;
+        }
         this.physics.world.update(0, 1000 / P.fps); this.physics.world.postUpdate(); this.ticks++;
         if (this.body.y >= current.world.height) this.die();
       }
       this.playerArt.setPosition(this.body.x, this.body.y);
+      this.jumpQueued = false;
       this.jumpHeld = jumping;
     }
     update(_time: number, delta: number) {
@@ -108,16 +127,25 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
     input: { keyboard: { target: options.keyboardTarget || window } },
     scene: [scene], audio: { noAudio: true },
   });
-  const releaseKeys = () => scene.input?.keyboard?.resetKeys();
+  const releaseKeys = () => {
+    scene.input?.keyboard?.resetKeys();
+    scene.jumpQueued = false; scene.startQueued = false; scene.restartQueued = false;
+  };
   options.keyboardTarget?.addEventListener('blur', releaseKeys);
   function ready() { return alive && !pending && scene.sys.isActive() && Boolean(scene.player); }
   return {
     loadLevel(value) { const next = parseLevel(value); if (!alive) throw new Error('Game has been destroyed'); current = next; if (ready()) { pending = true; scene.scene.restart(); } },
     restart() { if (ready()) { pending = true; scene.scene.restart(); } }, start() { if (ready()) scene.start(); },
     snapshot() { return ready() ? scene.snapshot() : null; },
-    step(frames) {
+    step(frames, input) {
       if (!options.manual) throw new Error('Manual stepping is only available in test mode');
       if (!Number.isInteger(frames) || frames < 0 || frames > 3600) throw new Error('Step count must be between 0 and 3600');
+      if (input && (![-1, 0, 1].includes(input.direction) || typeof input.jump !== 'boolean')) throw new Error('Invalid replay input');
+      if (input && ready()) {
+        scene.keys.RIGHT.isDown = input.direction === 1;
+        scene.keys.LEFT.isDown = input.direction === -1;
+        scene.keys.SPACE.isDown = input.jump;
+      }
       if (ready()) for (let i = 0; i < frames; i++) scene.fixedStep();
     },
     destroy() { if (alive) { alive = false; options.keyboardTarget?.removeEventListener('blur', releaseKeys); game.destroy(true); } },

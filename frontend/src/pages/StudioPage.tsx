@@ -4,6 +4,7 @@ import { parseLevel } from "../../../game/src/contracts";
 import { useStudio, fromLevel } from "../state";
 import { api, createLevel, detect, normalizedImage } from "../services/api";
 import { boxWarnings, candidateBoxes } from "../services/recognition";
+import { verifyRoute } from "../services/replay";
 import { samples, sampleLevel } from "../services/samples";
 import type { Box, CheckResult, Draft } from "../types";
 import { Upload } from "../components/Upload";
@@ -169,7 +170,8 @@ export function StudioPage() {
       const level = await createLevel(draft);
       if (alive.current) {
         setDraft((d) => ({ ...d, level, dirty: true, stage: "play" }));
-        setCheck(null);
+        try { setCheck(await api.assess(level)); }
+        catch { setError("The level was created, but its route could not be checked. You can retry after saving."); }
         setNotice(
           "Valid level created. Check spawn placement and try it before saving.",
         );
@@ -314,10 +316,10 @@ export function StudioPage() {
             <option value="" disabled>
               Choose a sample…
             </option>
-            {samples.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
+            {["Playable demos", "Diagnostic examples · need changes"].map(category => (
+              <optgroup key={category} label={category}>
+                {samples.filter(s => s.category === category).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </optgroup>
             ))}
           </select>
         </label>
@@ -377,7 +379,18 @@ export function StudioPage() {
               </button>
             </div>
           </div>
-          {check && <Playability result={check} />}
+          {check && <>
+            <Playability result={check} />
+            {check.status === "reachable" && !check.verified_in_game && check.path && <button disabled={!!busy} onClick={async () => {
+              setBusy("Replaying route in Phaser");
+              try {
+                const won = await verifyRoute(draft.level!, check.path!);
+                setCheck({ ...check, status: won ? "reachable" : "unknown", verified_in_game: won,
+                  reason: won ? "The route reached the goal in a Phaser replay. This does not guarantee an easy level." : "The simulated route did not reach the goal in Phaser. Review the layout and try again." });
+              } catch (e) { setError((e as Error).message); }
+              finally { setBusy(""); }
+            }}>Verify route in Phaser</button>}
+          </>}
         </>
       ) : (
         <>

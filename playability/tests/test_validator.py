@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from contracts import ROOT
+from contracts import ROOT, PHYSICS as P
 from playability.validator import State, advance, check_playability, max_jump_rise
 
 
@@ -50,3 +50,24 @@ def test_bounds_and_jump():
     assert again.vy == -330
     assert max_jump_rise() == 69
     assert check_playability(level, max_states=1)['status'] == 'unknown'
+
+
+def test_edge_grace_and_jump_buffer_match_shared_settings():
+    level = fixture('flat')
+    edge = State(50, 400, 0, False, False, P['coyote_ticks'])
+    rising, _ = advance(level, edge, 1, True)
+    assert rising.vy == -345
+    buffered = State(50, 430, 0, True, True, 0, 3)
+    rising, _ = advance(level, buffered, 1, True)
+    assert rising.vy == -345
+
+
+def test_timing_and_geometry_advice_are_separate_from_reachability():
+    result = check_playability(fixture('one-jump'))
+    assert result['status'] == 'reachable'
+    assert result['difficulty']['source'] == 'python_approximation'
+    assert result['difficulty']['tested_offset_frames'] == 3
+    assert not result['verified_in_game']
+    gap = check_playability(fixture('wide-gap'), max_states=100)
+    assert gap['status'] == 'unknown'
+    assert any('gap' in text and 'platform' in text for text in gap['suggestions'])
