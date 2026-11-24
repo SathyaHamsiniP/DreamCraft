@@ -96,3 +96,7 @@ files or uploads are stored. See [the frontend guide](../frontend/README.md).
 For optional real CNN suggestions from a trusted local checkpoint, see
 [Local CNN recognition](RECOGNITION.md). Manual detection remains available without
 weights. Every prediction still needs human review before creating a level.
+
+`POST /api/sketch/generate` runs the automatic sketch pipeline with a trusted local
+CNN. See [Automatic generation](../sketch/AUTOMATIC.md) for multipart fields, limits,
+response states and the browser replay check. Existing manual endpoints are kept.

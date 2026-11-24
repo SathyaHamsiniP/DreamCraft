@@ -10,8 +10,15 @@ import type { Box, CheckResult, Draft } from "../types";
 import { Upload } from "../components/Upload";
 import { ObjectEditor } from "../components/ObjectEditor";
 import { GamePlayer } from "../components/GamePlayer";
+import { AutomaticStudio } from "./AutomaticStudio";
 import { Playability } from "../components/Playability";
 export function StudioPage() {
+  const [search] = useSearchParams();
+  if (search.has("sample") || search.has("level") || search.get("advanced") === "1") return <AdvancedStudio />;
+  return <AutomaticStudio />;
+}
+
+function AdvancedStudio() {
   const { draft, setDraft, ask } = useStudio();
   const [search, setSearch] = useSearchParams();
   const [useModel, setUseModel] = useState(true);
@@ -50,7 +57,7 @@ export function StudioPage() {
             "Opening this level will replace your unsaved studio changes. Continue?",
           ))
         ) {
-          if (active) setSearch({}, { replace: true });
+          if (active) setSearch({ advanced: "1" }, { replace: true });
           return;
         }
         if (active) {
@@ -109,7 +116,7 @@ export function StudioPage() {
         setDetectionWarnings([]);
         setCheck(null);
         setNotice("Image ready. Detect candidates, or add boxes manually.");
-        setSearch({}, { replace: true });
+        setSearch({ advanced: "1" }, { replace: true });
       } catch (e) {
         if (alive.current) setError((e as Error).message);
       } finally {
@@ -118,7 +125,9 @@ export function StudioPage() {
     });
   }
   function edit(boxes: Box[]) {
-    setDraft((d) => ({ ...d, boxes, level: null, dirty: true, stage: "edit" }));
+    setDraft((d) => ({ ...d, boxes, level: null, dirty: true, stage: "edit",
+      generation: d.generation ? { ...d.generation, status: 'needs_correction', assessment: null,
+        issues: [{ id: null, message: 'The game was edited. Use Advanced Edit to check and play the current version.' }] } : undefined }));
     setCheck(null);
     setError("");
     setNotice("");
@@ -265,6 +274,7 @@ export function StudioPage() {
         <div>
           <div className="eyebrow">YOUR IDEAS, A PLAYABLE WORLD</div>
           <h1>Game studio</h1>
+          <Link to="/studio">Automatic generation →</Link>
           <p>Build a little adventure, one object at a time.</p>
         </div>
         <span className={`badge ${draft.dirty ? "unsaved" : ""}`}>
@@ -317,7 +327,7 @@ export function StudioPage() {
                 setNotice(
                   "Sample level loaded. It was not generated from your drawing.",
                 );
-                setSearch({}, { replace: true });
+                setSearch({ advanced: "1" }, { replace: true });
               });
             }}
           >

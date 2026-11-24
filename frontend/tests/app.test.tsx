@@ -100,7 +100,7 @@ it("saves a sample and warns before leaving unsaved edits", async () => {
 });
 it("previews an upload, shows detection errors and retries real editor data", async () => {
   const user = userEvent.setup();
-  open("/studio");
+  open("/studio?advanced=1");
   const file = new File(["synthetic"], "sheet.png", { type: "image/png" });
   fireEvent.change(screen.getByLabelText("Upload drawing"), {
     target: { files: [file] },

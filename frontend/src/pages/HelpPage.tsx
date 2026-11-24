@@ -30,24 +30,16 @@ export function HelpPage() {
             the player's spawn and one G for the goal. Draw platforms below them
             so the player has somewhere to stand.
           </p>
-          <h2>2. Upload and find candidates</h2>
+          <h2>2. Upload and generate</h2>
           <p>
             Choose a PNG or JPEG, up to 5 MiB, 4096 pixels per side and 12
             million pixels total. OpenCV suggests boxes around ink. It does not
             know the object types. Blank sheets can still be edited manually.
           </p>
-          <h2>3. Review every object</h2>
-          <p>
-            Select a box, drag it to move it, or drag its bottom-right corner to
-            resize it. Numeric fields also work with a keyboard. Use Add box or
-            Draw box for missed drawings. Delete noise boxes. Choose a type and
-            confirm your review for each object.
-          </p>
-          <p>
-            Changes clear that object's review. Positions are in the oriented
-            image pixels shown on screen. Create level sends the reviewed boxes
-            to the backend, which checks the game rules.
-          </p>
+          <p>Click Generate My Game. DreamCraft runs the local CNN, calculates geometry and searches for a route. It shows a game only after a route reaches the goal in Phaser. If a drawing is unclear, answer just the questions shown. Missing or broken checkpoints do not produce recognition results.</p>
+          <h2>3. Small repairs and Advanced Edit</h2>
+          <p>You can allow small automatic repairs. The tool may align spawn or goal to a nearby platform, or try one short bridge. Every change appears under Automatic adjustments. Larger gaps, touching symbols and unclear layouts may need your help.</p>
+          <p>Advanced Edit keeps the original manual tools. Select, move or resize boxes, add missed objects, delete noise, choose labels and review each object. Only this optional mode asks for coordinates or world dimensions. Open the original sketch to compare it with the generated game.</p>
         </section>
         <section className="card">
           <h2>4. Try your world</h2>
@@ -90,8 +82,7 @@ export function HelpPage() {
           </p>
           <p>
             A locally configured CNN can suggest object types and confidence scores.
-            Review every object and correct any mistakes. Without weights, choose
-            labels manually. Public dataset scores do not measure full-photo accuracy.
+            Automatic mode checks confidence, crop stability and basic shape clues, but mistakes are still possible. Without weights, use Advanced Edit to label manually. Public dataset scores do not measure full-photo accuracy.
           </p>
           <h2>Collect training samples</h2>
           <p>

@@ -121,7 +121,7 @@ test("synthetic sketch goes through real detection, manual review, SQLite and Ph
   page,
   request,
 }) => {
-  await page.goto("/studio");
+  await page.goto("/studio?advanced=1");
   const data = await synthetic(page);
   await page.getByLabel("Upload drawing").setInputFiles({
     name: "controlled.png",
@@ -216,7 +216,7 @@ test("synthetic sketch goes through real detection, manual review, SQLite and Ph
 test("invalid uploads, blank sheets and missing labels stay editable", async ({
   page,
 }) => {
-  await page.goto("/studio");
+  await page.goto("/studio?advanced=1");
   await page.getByLabel("Upload drawing").setInputFiles({
     name: "bad.txt",
     mimeType: "text/plain",
@@ -264,7 +264,7 @@ test("EXIF preview and candidate coordinates use the same pixels", async ({
     "-c",
     "from PIL import Image; import io,sys; im=Image.new('RGB',(120,80),'white'); e=Image.Exif();e[274]=6; b=io.BytesIO();im.save(b,'JPEG',exif=e);sys.stdout.buffer.write(b.getvalue())",
   ]);
-  await page.goto("/studio");
+  await page.goto("/studio?advanced=1");
   await page.getByLabel("Upload drawing").setInputFiles({
     name: "oriented.jpg",
     mimeType: "image/jpeg",
@@ -290,7 +290,7 @@ test("EXIF preview and candidate coordinates use the same pixels", async ({
 test("boxes can be drawn, moved and resized with a pointer", async ({
   page,
 }) => {
-  await page.goto("/studio");
+  await page.goto("/studio?advanced=1");
   const data = await synthetic(page, true);
   await page.getByLabel("Upload drawing").setInputFiles({
     name: "manual.png",
@@ -351,7 +351,7 @@ test("home and studio fit desktop and mobile screens", async ({ page }) => {
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/studio");
+  await page.goto("/studio?advanced=1");
   await expect(
     page.getByRole("heading", { name: "Game studio" }),
   ).toBeVisible();
@@ -476,7 +476,7 @@ test("controlled prediction responses prefill labels but never skip review", asy
       },
     });
   });
-  await page.goto("/studio");
+  await page.goto("/studio?advanced=1");
   const data = await synthetic(page, true);
   await page
     .getByLabel("Upload drawing")

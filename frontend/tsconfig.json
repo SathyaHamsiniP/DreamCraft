@@ -25,6 +25,7 @@
     "src",
     "tests",
     "e2e",
+    "auto-e2e",
     "*.ts"
   ]
 }

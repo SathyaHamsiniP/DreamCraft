@@ -2,22 +2,24 @@
 
 DreamCraft is a college mini-project that aims to turn hand-drawn 2D levels into playable platform games. The drawings use rectangles for platforms, circles for coins, triangles for spikes, S for spawn and G for the goal.
 
-The game and backend can run now using sample JSON levels. Real drawing recognition is not connected yet: the handwritten dataset, object detector and trained CNN checkpoint are still needed. Mock uploads return clearly marked sample levels and do not analyse the drawing.
+React Studio can attempt automatic sketch-to-game generation with OpenCV and a trusted local CNN checkpoint. It calculates geometry, tries small visible repairs and checks a route in Phaser before showing a finished game. Unclear recognition or unsafe layouts need user help. No checkpoint is included in Git. Samples and the separate mock upload route remain clearly marked.
+
+For a fresh Codespace and all startup commands, see [Automatic generation setup](sketch/AUTOMATIC.md). The default Studio workflow is Upload → Generate My Game → Play; Advanced Edit keeps the manual tools.
 
 ## What works
 
 - A Phaser game with movement, jumping, solid platforms, coins, spikes, death, restart and victory.
 - A shared, validated level format and one versioned physics configuration.
 - A FastAPI service that saves, lists, reads and updates levels in SQLite.
-- JPEG/PNG upload checks and separate mock and real-recognition adapters. Real mode returns an unavailable error until the detector and model are connected.
+- JPEG/PNG upload checks, real CNN candidate classification, automatic generation and a separate mock route. The legacy from-sketch real mode remains separate; Studio uses the sketch APIs.
 - A bounded physics-based route search that returns reachable, unreachable or unknown with an explanation.
 - The existing CNN pipeline for cropped symbols, including grouped dataset splits, training, evaluation and portable checkpoints.
 
-The browser tests replay seven checker routes in real Phaser, including multiple jumps and jumps near the movement limits. This verifies those examples, not every possible level. The API marks each newly computed path as unverified until it is replayed. A failed search returns unknown unless a supported height-bound proof applies.
+The browser tests replay checker routes in real Phaser, including multiple jumps and jumps near the movement limits. This verifies those examples, not every possible level. The API marks each newly computed path as unverified until it is replayed. A failed search returns unknown unless a supported height-bound proof applies.
 
 ## Start locally
 
-Use Python 3.12 and Node.js 22 or newer. Run from the repository root:
+Use Python 3.12 and Node.js 24 or Node.js 22.12 or newer. Run from the repository root:
 
 ```bash
 python3 -m venv .venv

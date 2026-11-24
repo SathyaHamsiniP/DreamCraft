@@ -253,3 +253,8 @@ All reviewed sketch levels and saved levels share the new explorer, platform,
 coin and finish artwork. Their layout still comes from level JSON. Old saved
 flat levels stay flat; choose Sky trail to try the new sample layout. Physics,
 coordinate conversion, win rules and the level schema are unchanged.
+
+Automatic generation is now the default Studio mode. See
+[Automatic setup and limits](../sketch/AUTOMATIC.md) for a fresh Codespace, local
+checkpoint setup, repair history and the difference between a simulated route and
+a route verified in Phaser. Advanced Edit keeps the existing manual workflow.

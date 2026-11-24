@@ -1,8 +1,10 @@
 """Candidate API shared by the game backend and local collection app."""
 import base64
 import io
+import json
+from threading import BoundedSemaphore
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, ConfigDict
 from starlette.concurrency import run_in_threadpool
 
@@ -76,3 +78,34 @@ async def oriented_preview(file: UploadFile = File(...)):
                 'url': 'data:image/png;base64,' + base64.b64encode(buffer.getvalue()).decode()}
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+
+
+_GENERATION_SLOTS = BoundedSemaphore(2)
+
+
+@router.post('/api/sketch/generate')
+async def automatic_game(file: UploadFile = File(...), corrections: str = Form('{}'), allow_repairs: bool = Form(True)):
+    """Generate a candidate game with real inference and an explicit repair log."""
+    try:
+        data = await file.read(MAX_BYTES + 1)
+    finally:
+        await file.close()
+    if len(data) > MAX_BYTES:
+        raise HTTPException(413, 'Image must be at most 5 MiB')
+    try:
+        selected = json.loads(corrections)
+        if not isinstance(selected, dict) or len(selected) > 64 or any(not isinstance(k, str) or not isinstance(v, str) for k, v in selected.items()):
+            raise ValueError('Invalid corrections')
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if not _GENERATION_SLOTS.acquire(blocking=False):
+        raise HTTPException(429, 'Generation is busy. Please try again shortly.')
+    try:
+        from .automatic import generate
+        def work():
+            return generate(load_image(data), selected, allow_repairs)
+        return await run_in_threadpool(work)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    finally:
+        _GENERATION_SLOTS.release()

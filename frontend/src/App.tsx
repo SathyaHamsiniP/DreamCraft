@@ -67,7 +67,7 @@ export function Layout() {
           <p>Sketch it. Shape it. Play it.</p>
         </div>
         <div className="sidebar-footer">
-          <span className="status-dot" /> Manual & sample modes
+          <span className="status-dot" /> Sketch, edit & play
         </div>
       </aside>
       <div className="main-shell">

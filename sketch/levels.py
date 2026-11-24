@@ -7,6 +7,11 @@ from ml import CLASSES
 def reviewed_level(image_width, image_height, objects, world_width, world_height):
     if any(o.get('type') not in CLASSES or o.get('reviewed') is not True for o in objects):
         raise ValueError('Every object needs a reviewed class label')
+    return geometry_level(image_width, image_height, objects, world_width, world_height)
+
+
+def geometry_level(image_width, image_height, objects, world_width, world_height, validate=True):
+    """Convert geometry without claiming that CNN labels were reviewed by a person."""
     converted = image_to_world(image_width, image_height, objects, world_width, world_height)
     placed = []
     for box in converted['objects']:
@@ -17,4 +22,5 @@ def reviewed_level(image_width, image_height, objects, world_width, world_height
             obj['y'] += obj['height'] - PHYSICS['player_height']
             obj['width'], obj['height'] = PHYSICS['player_width'], PHYSICS['player_height']
         placed.append(obj)
-    return validate_level({'schema_version': '1.0', 'world': {'width': world_width, 'height': world_height}, 'objects': placed})
+    level = {'schema_version': '1.0', 'world': {'width': world_width, 'height': world_height}, 'objects': placed}
+    return validate_level(level) if validate else level
