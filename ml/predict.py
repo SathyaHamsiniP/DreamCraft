@@ -12,7 +12,14 @@ from .runtime import load_checkpoint, select_device
 def predict(checkpoint, image, device='cpu'):
     device = select_device(device)
     model, saved = load_checkpoint(checkpoint, device)
-    tensor = preprocess(image, **saved['config']['preprocessing']).unsqueeze(0).to(device)
+    return predict_loaded(model, saved, image, device)
+
+
+def predict_loaded(model, saved, image, device='cpu'):
+    settings = saved['config']['preprocessing']
+    if set(settings) - {'size', 'threshold'}:
+        raise ValueError('Unsupported inference preprocessing settings')
+    tensor = preprocess(image, **settings).unsqueeze(0).to(device)
     with torch.inference_mode():
         scores = model(tensor).softmax(1)[0].cpu().tolist()
     index = max(range(len(scores)), key=scores.__getitem__)

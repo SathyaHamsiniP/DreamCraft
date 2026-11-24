@@ -208,3 +208,9 @@ type checking, the production build, 16 gameplay browser tests and one collectio
 browser test using system Chromium. The build still reports its existing large
 JavaScript bundle warning. Python reports dependency deprecation warnings. No
 real handwritten sheets, trained checkpoint or GPU were used in these checks.
+
+
+For optional real CNN suggestions using a trusted local checkpoint, see
+[Local CNN recognition](../backend/RECOGNITION.md). The earlier unavailable-model
+examples describe operation without weights; configured servers now return real
+label suggestions, confidence scores and mandatory review flags.

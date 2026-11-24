@@ -122,7 +122,7 @@ def test_missing_checkpoint_and_real_predict_interface(tmp_path, monkeypatch):
     calls = []
     def prediction(checkpoint, sample):
         calls.append(sample.size)
-        return dict(predicted_class='coin', confidence=.6, scores={})
+        return dict(predicted_class='coin', confidence=.6, scores=dict(platform=.1, coin=.6, spike=.1, spawn=.1, goal=.1))
     monkeypatch.setattr(ml.predict, 'predict', prediction)
     checkpoint = tmp_path/'provided.pt'; checkpoint.touch()
     result = classify_candidates(image, boxes, checkpoint)

@@ -434,3 +434,78 @@ test("the new sample explains the goal, coins and jumps", async ({ page }) => {
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("controlled prediction responses prefill labels but never skip review", async ({
+  page,
+}) => {
+  await page.route("**/api/sketch/candidates?**", async (route) => {
+    const enabled =
+      new URL(route.request().url()).searchParams.get("classify") !== "false";
+    await route.fulfill({
+      json: {
+        image: { width: 960, height: 540, coordinates: "exif_oriented_pixels" },
+        model_status: enabled ? "ran" : "disabled",
+        stage: "candidates",
+        image_analyzed: true,
+        candidates: [
+          {
+            id: "fixture",
+            x: 40,
+            y: 20,
+            width: 60,
+            height: 60,
+            review_required: true,
+            ...(enabled
+              ? {
+                  predicted_class: "spawn",
+                  confidence: 0.55,
+                  low_confidence: true,
+                  prediction_status: "predicted",
+                  scores: {
+                    platform: 0.1,
+                    coin: 0.1,
+                    spike: 0.15,
+                    spawn: 0.55,
+                    goal: 0.1,
+                  },
+                }
+              : {}),
+          },
+        ],
+        warnings: ["Controlled API response fixture. Review every object."],
+      },
+    });
+  });
+  await page.goto("/studio");
+  const data = await synthetic(page, true);
+  await page
+    .getByLabel("Upload drawing")
+    .setInputFiles({
+      name: "controlled.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(data, "base64"),
+    });
+  await expect(page.getByText("controlled.png", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Detect candidates" }).click();
+  await expect(page.getByLabel("Object type", { exact: true })).toHaveValue(
+    "spawn",
+  );
+  await expect(page.getByLabel("I reviewed this object")).not.toBeChecked();
+  await expect(page.getByText(/Low confidence/)).toBeVisible();
+  await page.getByLabel("Object type", { exact: true }).selectOption("goal");
+  await page.getByLabel("I reviewed this object").check();
+  await expect(page.getByLabel("Object type", { exact: true })).toHaveValue(
+    "goal",
+  );
+  await expect(
+    page.getByRole("button", { name: "Create level →" }),
+  ).toBeDisabled();
+  await page.getByLabel("Use local CNN when available").uncheck();
+  await page.getByRole("button", { name: "Detect candidates" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Continue" })
+    .click();
+  await expect(page.getByLabel("Object type", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("I reviewed this object")).not.toBeChecked();
+});

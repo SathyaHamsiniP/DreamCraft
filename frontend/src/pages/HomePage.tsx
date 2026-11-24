@@ -29,7 +29,7 @@ export function HomePage() {
             <span aria-hidden="true">✦</span> Start with samples or label your
             sketch manually.
             <br />
-            Trained handwriting recognition is not available yet.
+            A trusted local CNN can suggest labels. You review the results.
           </p>
         </div>
         <div

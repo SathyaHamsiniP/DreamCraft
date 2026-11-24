@@ -89,10 +89,9 @@ export function HelpPage() {
             detection.
           </p>
           <p>
-            The real handwriting dataset and trained model are not ready. The
-            studio supports manually reviewed sketches without weights. There
-            are no invented confidence scores. Real photo detection and
-            handwriting accuracy still need testing.
+            A locally configured CNN can suggest object types and confidence scores.
+            Review every object and correct any mistakes. Without weights, choose
+            labels manually. Public dataset scores do not measure full-photo accuracy.
           </p>
           <h2>Collect training samples</h2>
           <p>

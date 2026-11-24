@@ -8,7 +8,7 @@ export interface Box {
   height: number;
   type?: Kind;
   reviewed: boolean;
-  prediction?: { label: Kind; confidence: number };
+  prediction?: { label: Kind; confidence: number; lowConfidence?: boolean };
 }
 export interface Candidates {
   image: { width: number; height: number; coordinates: "exif_oriented_pixels" };
@@ -16,6 +16,9 @@ export interface Candidates {
     Omit<Box, "type" | "reviewed"> & {
       predicted_class?: Kind;
       confidence?: number;
+      low_confidence?: boolean;
+      review_required?: boolean;
+      prediction_status?: string;
     }
   >;
   warnings: string[];
