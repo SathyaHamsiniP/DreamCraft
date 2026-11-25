@@ -1,0 +1,7 @@
+{
+  "file": "best.pt",
+  "size_bytes": 2678625,
+  "sha256": "18a5d4ddbdb7bcce769dcb127e2d61bbd83ee7b6501e9bddc3ad0ffeeaf35ffd",
+  "classes": ["platform", "coin", "spike", "spawn", "goal"],
+  "source": "Checkpoint supplied by the project owner from their local public-dataset training run"
+}

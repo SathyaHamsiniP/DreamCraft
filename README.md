@@ -9,8 +9,8 @@ through the actual Phaser game. Unclear drawings may need a quick correction.
 Advanced Edit lets you change boxes and approve them together. You can also play
 sample games and save your own levels.
 
-Automatic generation needs your trained model file. The model is not included in
-GitHub. Sample games and manual editing work without it. Recognition accuracy on
+The owner's trained model is included at `ml/checkpoints/best.pt`. Set the backend
+path below to use it. Sample games and manual editing work without it. Recognition accuracy on
 complete photographed levels still needs testing with real drawings.
 
 Only side-view platform games are supported. Maze, racing and survival games are
@@ -41,17 +41,17 @@ git clone https://github.com/SathyaHamsiniP/DreamCraft.git
 cd DreamCraft
 ```
 
-While [draft PR #12](https://github.com/SathyaHamsiniP/DreamCraft/pull/12) is open,
-use its branch to try these changes:
+While the shared-model changes are in review, use this branch to try them:
 
 ```bash
 git fetch origin
-git switch feature/sketch-runner-polish
+git switch feature/shared-model-object-sizes
 git pull --ff-only
 ```
 
-PR #12 is stacked on [draft PR #11](https://github.com/SathyaHamsiniP/DreamCraft/pull/11),
-which contains automatic generation. These changes are still on feature branches.
+This branch is stacked on [draft PR #12](https://github.com/SathyaHamsiniP/DreamCraft/pull/12),
+which builds on [draft PR #11](https://github.com/SathyaHamsiniP/DreamCraft/pull/11).
+These changes are still on feature branches.
 After the PRs are merged, the normal starting branch is `main`. The setup below
 starts from the **DreamCraft repository root** in each terminal.
 
@@ -72,7 +72,6 @@ python -m pip install 'torch>=2.6,<3' --index-url https://download.pytorch.org/w
 python -m pip install -r sketch/requirements.txt
 npm ci --prefix game
 npm ci --prefix frontend
-mkdir -p ml/runs/public
 ```
 
 The setup includes the ML and backend packages. Both npm installations are needed
@@ -94,32 +93,25 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r sketch/requirements.txt
 npm.cmd ci --prefix game
 npm.cmd ci --prefix frontend
-New-Item -ItemType Directory -Force ml/runs/public | Out-Null
 ```
 
-## Add your trained best.pt file
+## Use the shared model
 
-Copy your trusted trained checkpoint into:
+A normal clone or pull includes the owner's trained checkpoint:
 
 ```text
 DreamCraft/
   ml/
-    runs/
-      public/
-        best.pt
+    checkpoints/
+      best.pt
 ```
 
-Creating this folder does not create the model. You must supply the actual file
-from your training run. If `best.pt` is already there, keep it.
-
-For Codespaces, open the Explorer, right-click `ml/runs/public`, choose **Upload**,
-and select `best.pt` from your laptop. Use the file Explorer, not Studio's drawing
-upload. A file on your Windows laptop is not
-available inside Codespaces until you upload or copy it there.
-
-The folder and model weights are ignored by Git. Do not commit them. The server
-loads only the trusted local path you configure. Requests cannot choose a model
-path or upload weights. See [model setup and limits](backend/RECOGNITION.md).
+Teammates do not need to upload a model or download training data. This 2.6 MB file
+is the only checkpoint tracked by Git. Its checksum and source notes are in
+[the shared model folder](ml/checkpoints/README.md). New training outputs in
+`ml/runs/` remain ignored. You can still use a different trusted local file by
+setting its absolute path. Requests cannot choose a path or upload weights.
+See [model setup and limits](backend/RECOGNITION.md).
 
 ## Start the backend — terminal 1
 
@@ -127,7 +119,7 @@ path or upload weights. See [model setup and limits](backend/RECOGNITION.md).
 
 ```bash
 source .venv/bin/activate
-export DREAMCRAFT_CHECKPOINT="$PWD/ml/runs/public/best.pt"
+export DREAMCRAFT_CHECKPOINT="$PWD/ml/checkpoints/best.pt"
 export OMP_NUM_THREADS=2
 export MKL_NUM_THREADS=2
 python -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
@@ -137,7 +129,7 @@ python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ### Windows PowerShell
 
 ```powershell
-$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path 'ml/runs/public/best.pt').Path
+$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path 'ml/checkpoints/best.pt').Path
 $env:OMP_NUM_THREADS = '2'
 $env:MKL_NUM_THREADS = '2'
 .\.venv\Scripts\python.exe -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
@@ -239,12 +231,13 @@ level needs the backend running too.
 
 The five unchanged classes are `platform`, `coin`, `spike`, `spawn`, and `goal`. Public training sources are **Google Quick, Draw!** (adapted square/circle/triangle bitmaps) and **EMNIST ByClass** (uppercase S and G). See [public dataset preparation and source terms](ml/PUBLIC_DATASETS.md).
 
-The project owner reported a **local** CPU training run on **14,847 cropped public symbols** (9,000 train / 3,000 validation / 2,847 test), with **98.84% held-out test accuracy** and **98.85% macro F1-score** after 30 epochs. These are **isolated-symbol results**, not full-scene or real-photo game-generation accuracy. The trained checkpoint and evaluation files are local, were not reproduced in GitHub CI and must not be committed as part of the normal repository.
+The project owner reported a **local** CPU training run on **14,847 cropped public symbols** (9,000 train / 3,000 validation / 2,847 test), with **98.84% held-out test accuracy** and **98.85% macro F1-score** after 30 epochs. These are **isolated-symbol results**, not full-scene or real-photo game-generation accuracy. The supplied checkpoint is now shared in `ml/checkpoints/`. Its loading and inference are tested here. The original dataset and evaluation files are not included, so those metrics have not been reproduced here.
 
 ## Run checks
 
-No real dataset, production checkpoint or GPU is required for automated tests.
-Tests use controlled images and test-only weights. They do not measure recognition
+No dataset download or GPU is required for automated tests. Most tests use
+controlled images and test-only weights; shared-model checks also load the included
+checkpoint, verify its checksum and run inference. They do not measure recognition
 accuracy on real level photos. Stop development servers before browser tests.
 Use a separate test terminal so the tests do not load your production checkpoint.
 
@@ -302,4 +295,5 @@ See [artwork credits](game/ART.md) for the licensed runner and barrier sources.
 This is a local development setup. User accounts and production deployment are
 not included. SQLite files live in `backend/data/`; datasets belong in `ml/data/`
 and model outputs in `ml/runs/`. Keep data, model weights, virtual environments,
-secrets and generated test reports out of Git.
+secrets and generated test reports out of Git. The single shared checkpoint in
+`ml/checkpoints/` is the documented exception for model weights.

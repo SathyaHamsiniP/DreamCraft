@@ -4,6 +4,11 @@ This module recognises one cropped game symbol at a time. It uses a CNN, a neura
 
 The input is a cropped image of a rectangle, circle, triangle, S or G drawn with dark strokes on light paper. Images are prepared as 64×64 grayscale inputs by default. Finding and cropping symbols from a full sheet is separate work and is not included here.
 
+The owner's trained public-data checkpoint is included at `ml/checkpoints/best.pt`.
+See [shared model setup and checksum](checkpoints/README.md) and the
+[application run commands](../README.md). Training outputs still go in ignored
+`ml/runs/` folders. No dataset download or training is needed to run this model.
+
 ## Set up the environment
 
 Python 3.12 is the tested version. Run the following commands from the repository root, not from inside `ml/`:

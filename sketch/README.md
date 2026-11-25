@@ -1,8 +1,9 @@
 # Sketch detection and dataset collection
 
-The real handwritten sheets and trained weights are not available yet. This tool
-finds possible ink regions and helps people save labeled crops. A candidate is
-not a recognized game object. Synthetic checks do not measure handwriting accuracy.
+This tool finds possible ink regions and helps people save labeled crops. A
+candidate is not a recognized game object. The owner's public-data model is now
+included in [the shared model folder](../ml/checkpoints/README.md). Real handwritten
+sheets still need testing. Synthetic checks do not measure handwriting accuracy.
 
 ## Run the local tool
 
