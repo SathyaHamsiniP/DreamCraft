@@ -19,7 +19,7 @@ export function Playability({ result }: { result: CheckResult }) {
       )}
       {result.verified_in_game && <p>An automatic test reached the finish in the game.</p>}
       {result.difficulty?.status === 'timing_sensitive' && <p>Some jumps may need careful timing. Try the level to see how they feel.</p>}
-      {userNotes(result.suggestions).map(s => <p key={s}>{s}</p>)}
+      {result.status !== 'reachable' && userNotes(result.suggestions).map(s => <p key={s}>{s}</p>)}
       {(result.status === "unknown" || result.status === "unreachable") && <p>You can use Advanced Edit to add a step, shorten a gap or lower the finish, then check again.</p>}
       {result.status === "unknown" && (
         <p>

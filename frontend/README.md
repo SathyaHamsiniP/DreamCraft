@@ -126,6 +126,11 @@ page says the path has not been tried in the game. Rendering or playing a level
 does not change that field for the checker request. Developer setup messages stay
 out of the app; a small message adapter keeps actionable errors readable.
 
+Found paths are now tried in a hidden Phaser instance automatically after level
+creation and saved-level checks. Only reaching the finish sets the displayed game
+verification flag. Failed or incomplete game tests stay unknown. The hidden game
+is destroyed after each check and does not change the player's current run.
+
 ## API and code guide
 
 `src/services/api.ts` uses Fetch, a configurable base URL, 30-second timeouts,
@@ -263,3 +268,7 @@ Automatic generation is now the default Studio mode. See
 [Automatic setup and limits](../sketch/AUTOMATIC.md) for a fresh Codespace, local
 checkpoint setup, repair history and the difference between a simulated route and
 a route verified in Phaser. Advanced Edit keeps the existing manual workflow.
+
+The normal sample menu contains only the four playable demos. Wide-gap and
+high-goal fixtures remain in `contracts/examples/` for regression tests. Tests
+load those fixtures through the backend rather than offering them as public games.

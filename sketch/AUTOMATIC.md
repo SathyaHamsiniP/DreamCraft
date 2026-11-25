@@ -7,7 +7,8 @@ is a private local file. Never commit it or put its path in a Vite variable.
 Upload a PNG/JPEG and click **Generate My Game**. No label, box review or world
 measurement is required when recognition and route checks pass. Use **Advanced
 Edit** for optional manual work. The existing candidate and reviewed-level APIs
-still work and keep their existing review rules.
+keep their payloads. Advanced Edit uses one **Approve all** action; added boxes
+need approval, while moving or relabeling an approved box keeps its approval.
 
 ## A new GitHub Codespace
 

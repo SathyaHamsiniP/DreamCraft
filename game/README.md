@@ -84,11 +84,16 @@ purple finish flag to win. Coins are optional and each adds one point. Missing
 coins does not stop a win. The older flat sample stays available for walking
 practice and regression tests.
 
-`src/art.ts` draws the sky, platforms, gold coins, blue explorer and finish marker.
-Those drawings have no physics bodies. The engine still uses the existing shared
-rectangles and movement rules for collisions. Collected coin art is hidden with
-its collider, and all art resets on restart. No images, sounds or external asset
-services are needed.
+`src/art.ts` draws the sky, platforms, gold coins and finish portal, and loads the
+cartoon runner and road barrier from local PNG files. See [artwork credits](ART.md)
+for sources and licenses. Artwork has no physics bodies. The engine keeps the
+shared rectangles and movement rules for collisions. Collected coin art is hidden
+with its collider, and all art resets on restart. No external asset server is needed.
+
+The normal standalone menu shows Sky Trail, Flat, Coins and One Jump. The
+wide-gap, high-goal and other diagnostic fixtures stay available in the browser
+test view (`?test=1` or `?test=live`). They are kept as regression cases, so making
+the public menu playable does not remove the tests for impossible or uncertain layouts.
 
 The checker finds a route for `sky-trail`; the browser suite replays that exact
 route in Phaser and compares positions. This proves the supplied sample route

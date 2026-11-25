@@ -262,3 +262,35 @@ test('local runner artwork has visible idle, run and jump frames and is reused o
   await page.locator('canvas').screenshot({ path: testInfo.outputPath('skater-game.png') });
   await testInfo.attach('skater-game', { path: testInfo.outputPath('skater-game.png'), contentType: 'image/png' });
 });
+
+test('a path with a narrow jump window reaches the finish in actual Phaser', async ({ page, request }) => {
+  const { readFileSync } = await import('node:fs');
+  const level = JSON.parse(readFileSync(new URL('../../playability/tests/fixtures/tight-timing.json', import.meta.url), 'utf8'));
+  const response = await request.post('http://127.0.0.1:8001/api/levels/assess', { data: level });
+  expect(response.ok()).toBe(true);
+  const assessment = await response.json();
+  expect(assessment.status).toBe('reachable');
+  expect(assessment.search.input_step_frames).toBe(1);
+  expect(assessment.verified_in_game).toBe(false);
+  await page.evaluate(level => window.dreamcraft.loadLevel(level), level);
+  await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+  await expect.poll(() => snapshot(page)).not.toBeNull();
+  await page.evaluate(() => window.dreamcraft.start());
+  for (const action of assessment.path) {
+    await page.evaluate(a => window.dreamcraft.step(a.frames, a), action);
+    const actual = await state(page);
+    expect(actual.x).toBeCloseTo(action.expected.x, 2);
+    expect(actual.y).toBeCloseTo(action.expected.y, 2);
+  }
+  expect((await state(page)).state).toBe('completed');
+});
+
+test('the public sample menu contains playable demos and test mode keeps edge cases', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#game canvas')).toHaveCount(1);
+  await expect(page.locator('#level option')).toHaveText(['coins', 'flat', 'one-jump', 'sky-trail']);
+  await page.goto('/?test=1');
+  await expect.poll(() => snapshot(page)).not.toBeNull();
+  await expect(page.locator('#level option[value="wide-gap"]')).toHaveCount(1);
+  await expect(page.locator('#level option[value="high-goal"]')).toHaveCount(1);
+});

@@ -2,8 +2,6 @@ import trail from "../../../contracts/examples/sky-trail.json";
 import flat from "../../../contracts/examples/flat.json";
 import coins from "../../../contracts/examples/coins.json";
 import jump from "../../../contracts/examples/one-jump.json";
-import gap from "../../../contracts/examples/wide-gap.json";
-import high from "../../../contracts/examples/high-goal.json";
 import { parseLevel } from "../../../game/src/contracts";
 export const samples = [
   {
@@ -34,20 +32,6 @@ export const samples = [
     name: "One small jump",
     description: "Try a jump between platforms.",
     level: jump,
-  },
-  {
-    category: "Levels to fix",
-    id: "gap",
-    name: "Wide gap · needs a change",
-    description: "Explore a level that needs changes.",
-    level: gap,
-  },
-  {
-    category: "Levels to fix",
-    id: "high",
-    name: "High finish · needs a change",
-    description: "See what the checker can tell you.",
-    level: high,
   },
 ];
 export function sampleLevel(id: string) {

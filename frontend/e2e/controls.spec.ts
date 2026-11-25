@@ -32,16 +32,15 @@ test('real-time Studio movement works before, during and after a jump', async ({
   await expect(page.locator('canvas')).toHaveCount(1);
 });
 
-test('Studio verifies a route in Phaser and separates diagnostic samples', async ({ page }) => {
+test('Studio verifies a route in Phaser and offers only playable samples', async ({ page }) => {
   await page.goto('/studio?sample=flat');
   await expect(page.getByTestId('game-state')).toHaveText('ready');
   await page.getByRole('button', { name: 'Back to editor', exact: true }).click();
   await page.getByRole('button', { name: 'Create level →' }).click();
   await expect(page.getByRole('heading', { name: 'A path to the finish was found' })).toBeVisible();
-  await expect(page.getByText('This path has not been tried in the game yet.')).toBeVisible();
-  await page.getByRole('button', { name: 'Try the path in the game' }).click();
+  await expect(page.getByRole('button', { name: 'Try the path in the game' })).toHaveCount(0);
   await expect(page.getByText('An automatic test reached the finish in the game.')).toBeVisible();
   await expect(page.locator('canvas')).toHaveCount(1);
-  await expect(page.locator('optgroup[label="Levels to fix"] option')).toHaveCount(2);
+  await expect(page.locator('option[value="gap"], option[value="high"]')).toHaveCount(0);
   await expect(page.locator('optgroup[label="Playable demos"] option')).toHaveCount(4);
 });

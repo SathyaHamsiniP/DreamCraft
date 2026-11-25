@@ -9,8 +9,10 @@ export function userMessage(message: string): string {
     return '';
   if (/goal is above the highest possible/i.test(message))
     return 'The finish is too high to reach. Lower it or add another platform.';
-  if (/No winning path.*search limit|No route.*sampled states/i.test(message))
-    return 'We could not find a way to the finish within the time available. The level may still be playable.';
+  if (/No winning path.*search limit/i.test(message))
+    return 'The check stopped before finding a way to the finish. The level may still be playable.';
+  if (/No route.*sampled states/i.test(message))
+    return 'We could not find a way through this layout. You can try playing it, or adjust the platforms and finish.';
   if (/route was found in the Python simulation/i.test(message))
     return 'A possible way to the finish was found.';
   if (/gap between .* units/i.test(message))

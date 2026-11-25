@@ -1,9 +1,11 @@
 import { mountGame, GameHandle } from './engine';
 const examples = import.meta.glob('../../contracts/examples/*.json', { eager: true, import: 'default' });
+const testView = new URLSearchParams(location.search).has('test');
+const playableSamples = new Set(['flat', 'coins', 'one-jump', 'sky-trail']);
 const levels: Record<string, unknown> = {};
 for (const [path, data] of Object.entries(examples)) {
   const name = path.split('/').pop()!.replace('.json', '');
-  if (!name.startsWith('invalid-')) levels[name] = data;
+  if (!name.startsWith('invalid-') && (testView || playableSamples.has(name))) levels[name] = data;
 }
 const select = document.querySelector<HTMLSelectElement>('#level')!;
 for (const name of Object.keys(levels).sort()) select.add(new Option(name, name));

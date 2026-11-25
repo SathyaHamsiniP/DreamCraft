@@ -6,6 +6,15 @@ gravity, horizontal movement, buffered jumps and a short grace period after leav
 an edge. Physics version 1.1 adds five grace ticks and six jump buffer ticks.
 Jump height, speed and gravity are unchanged.
 
+The quick search still tries six-frame inputs first. If that does not find a path,
+a second search can change inputs every frame. It keeps positions to half a world
+unit and vertical speed to one gravity step. A small preference for progress
+toward the goal helps the second search. Both passes share the same state and time
+limits; the first gets at most 40 percent of the states. There is one overall
+deadline, so a busy CPU does not force an early switch to the slower search.
+It does not try to prove that a route is the shortest.
+Consecutive equal inputs are grouped in the response to keep replays small.
+
 ## Results
 
 - `reachable`: a route reached the goal in the Python approximation.
@@ -13,9 +22,10 @@ Jump height, speed and gravity are unchanged.
 - `unknown`: search failed, reached its limit, or encountered geometry it could
   not resolve reliably. This is not proof that a level is impossible.
 
-`verified_in_game` from the server is always false. In Studio, use **Verify route
-in Phaser** after a route is found. This runs the returned inputs in a separate
-hidden instance of the same Phaser scene, then destroys it. Only reaching the goal
+`verified_in_game` from the server is always false. Studio now tries found paths
+in the game automatically after creating or checking a level. This runs the
+returned inputs in a separate hidden instance of the same Phaser scene, then
+destroys it. There is no second verification button. Only reaching the goal
 sets the displayed verification flag to true. A failed replay changes the displayed
 assessment to unknown. It does not change the stored level or the backend result.
 Verification is for that route and those level objects, not every possible input.
@@ -34,7 +44,9 @@ still work through the existing endpoint. All five symbols and the level schema
 stay the same.
 
 The response adds `suggestions` and `difficulty` alongside the existing fields.
-Suggestions point out large gaps, high steps and a spawn without immediate support.
+Suggestions point out large gaps, high steps and a start without a platform beneath
+it. Starting above a platform is allowed: the player can fall onto it. This no
+longer produces a warning just because the feet do not touch a platform initially.
 They are hints, not a complete explanation of all possible routes. Go back to the
 editor to move or resize boxes, add platforms, or lower the goal, then create the
 level again. The tool never moves objects automatically.
@@ -52,11 +64,13 @@ keyup processed in the same render frame could clear the edge before the fixed
 step read it. Holding keys in manual-step tests did not cover short taps. Phaser
 already guards its post-update against double movement; that was not the cause.
 Studio focuses the game after Start/Restart and when the game area is clicked.
-Position details let users check movement and landing while trying a level.
+The Start button is above the canvas and brings it into view. Restart begins a
+fresh attempt without another Start click. Position output is kept hidden for
+browser tests.
 
-Playable demos and diagnostic examples appear in separate selector groups. The
-wide-gap and high-goal fixtures remain unchanged and explicitly unverified. They
-are not advertised as playable demos. One Small Jump and Sky Trail have wider
+Only playable demos appear in the normal sample menus. The wide-gap and high-goal
+fixtures remain unchanged for regression tests and can still be loaded as saved
+test data. The engine's test view also exposes diagnostic fixtures. One Small Jump and Sky Trail have wider
 landing margins; the game still cannot jump a 400-unit gap.
 
 ## Checks
@@ -79,6 +93,10 @@ input, Space followed by Right in midair, simultaneous Right and Space, landing,
 restart/focus, saved levels, Phaser replay and varied programmatically built
 reviewed-sketch layouts. These controlled layouts and synthetic images do not
 measure recognition or real-photo accuracy. No CNN or public dataset is changed.
+The tight-timing fixture has a jump that the six-frame search missed. The finer
+search finds it, and a browser test replays it through the real Phaser engine while
+checking the returned positions. Timing checks also shift one-frame jump presses;
+they no longer leave a short press unchanged when testing a later jump.
 
 The exact reported loss of horizontal control after Space was not reproduced here
 on the original engine. The original engine passed a real-time midair direction

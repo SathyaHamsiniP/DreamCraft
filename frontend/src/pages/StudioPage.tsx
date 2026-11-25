@@ -4,7 +4,7 @@ import { parseLevel } from "../../../game/src/contracts";
 import { useStudio, fromLevel } from "../state";
 import { api, createLevel, detect, normalizedImage } from "../services/api";
 import { boxWarnings, candidateBoxes } from "../services/recognition";
-import { verifyRoute } from "../services/replay";
+import { verifyPlayability } from "../services/playability";
 import { samples, sampleLevel } from "../services/samples";
 import type { Box, CheckResult, Draft } from "../types";
 import { Upload } from "../components/Upload";
@@ -182,18 +182,24 @@ function AdvancedStudio() {
       return;
     }
     setBusy("Creating level");
+    request.current?.abort();
+    const abort = new AbortController(); request.current = abort;
     try {
-      const level = await createLevel(draft);
+      const level = await createLevel(draft, abort.signal);
       if (alive.current) {
         setDraft((d) => ({ ...d, level, dirty: true, stage: "play" }));
-        try { setCheck(await api.assess(level)); }
-        catch { setError("The level was created, but its route could not be checked. You can retry after saving."); }
+        try {
+          setBusy('Checking the jumps and trying the game');
+          const estimate = await api.assess(level, abort.signal);
+          const checked = await verifyPlayability(level, estimate, abort.signal);
+          if (alive.current) setCheck(checked);
+        } catch { if (!abort.signal.aborted) setError("The game is ready, but its check could not finish. Please try checking it again."); }
         setNotice(
           "Your game is ready to try.",
         );
       }
     } catch (e) {
-      if (alive.current) setError(`Level validation: ${(e as Error).message}`);
+      if (alive.current && !abort.signal.aborted) setError(`Level validation: ${userMessage((e as Error).message)}`);
     } finally {
       if (alive.current) setBusy("");
     }
@@ -233,9 +239,12 @@ function AdvancedStudio() {
     if (!id || !alive.current) return;
     setBusy("Checking playability");
     setError("");
+    request.current?.abort();
+    const abort = new AbortController(); request.current = abort;
     try {
-      const result = await api.check(id);
-      if (alive.current) setCheck(result);
+      const result = await api.check(id, abort.signal);
+      const checked = await verifyPlayability(draft.level, result, abort.signal);
+      if (alive.current) setCheck(checked);
     } catch (e) {
       if (alive.current) setError(userMessage((e as Error).message));
     } finally {
@@ -326,11 +335,9 @@ function AdvancedStudio() {
             <option value="" disabled>
               Choose a sample…
             </option>
-            {["Playable demos", "Levels to fix"].map(category => (
-              <optgroup key={category} label={category}>
-                {samples.filter(s => s.category === category).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </optgroup>
-            ))}
+            <optgroup label="Playable demos">
+              {samples.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </optgroup>
           </select>
         </label>
       </div>
@@ -387,18 +394,7 @@ function AdvancedStudio() {
               </button>
             </div>
           </div>
-          {check && <>
-            <Playability result={check} />
-            {check.status === "reachable" && !check.verified_in_game && check.path && <button disabled={!!busy} onClick={async () => {
-              setBusy("Trying the game to check the finish");
-              try {
-                const won = await verifyRoute(draft.level!, check.path!);
-                setCheck({ ...check, status: won ? "reachable" : "unknown", verified_in_game: won,
-                  reason: won ? "Try the game yourself to see how the jumps feel." : "The test could not reach the finish. Change the layout and try again." });
-              } catch (e) { setError(userMessage((e as Error).message)); }
-              finally { setBusy(""); }
-            }}>Try the path in the game</button>}
-          </>}
+          {check && <Playability result={check} />}
         </>
       ) : (
         <>

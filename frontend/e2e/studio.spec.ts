@@ -62,7 +62,7 @@ test("sample game uses real keyboard controls and cleans up across navigation", 
   ).toBeVisible();
   await expect(
     page.getByText(
-      "This path has not been tried in the game yet.",
+      "An automatic test reached the finish in the game.",
     ),
   ).toBeVisible();
   await page.getByRole("button", { name: "Back to editor" }).click();
@@ -383,10 +383,15 @@ test("home and studio fit desktop and mobile screens", async ({ page }) => {
   });
 });
 
-test("checking an unsaved sample saves it first and explains an unknown result", async ({
-  page,
+test("a saved gap test case keeps an unknown result separate from an impossible level", async ({
+  page, request,
 }) => {
-  await page.goto("/studio?sample=gap");
+  const { readFileSync } = await import('node:fs');
+  const level = JSON.parse(readFileSync(new URL('../../contracts/examples/wide-gap.json', import.meta.url), 'utf8'));
+  const saved = await request.post('http://127.0.0.1:8002/api/levels', { data: level });
+  expect(saved.ok()).toBe(true);
+  const record = await saved.json();
+  await page.goto(`/studio?level=${record.id}`);
   await ready(page);
   await page.getByRole("button", { name: "Check playability" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
