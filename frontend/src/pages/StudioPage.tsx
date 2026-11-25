@@ -4,14 +4,22 @@ import { parseLevel } from "../../../game/src/contracts";
 import { useStudio, fromLevel } from "../state";
 import { api, createLevel, detect, normalizedImage } from "../services/api";
 import { boxWarnings, candidateBoxes } from "../services/recognition";
-import { verifyRoute } from "../services/replay";
+import { verifyPlayability } from "../services/playability";
 import { samples, sampleLevel } from "../services/samples";
 import type { Box, CheckResult, Draft } from "../types";
 import { Upload } from "../components/Upload";
 import { ObjectEditor } from "../components/ObjectEditor";
 import { GamePlayer } from "../components/GamePlayer";
+import { AutomaticStudio } from "./AutomaticStudio";
 import { Playability } from "../components/Playability";
+import { userMessage, userNotes } from '../services/messages';
 export function StudioPage() {
+  const [search] = useSearchParams();
+  if (search.has("sample") || search.has("level") || search.get("advanced") === "1") return <AdvancedStudio />;
+  return <AutomaticStudio />;
+}
+
+function AdvancedStudio() {
   const { draft, setDraft, ask } = useStudio();
   const [search, setSearch] = useSearchParams();
   const [useModel, setUseModel] = useState(true);
@@ -50,7 +58,7 @@ export function StudioPage() {
             "Opening this level will replace your unsaved studio changes. Continue?",
           ))
         ) {
-          if (active) setSearch({}, { replace: true });
+          if (active) setSearch({ advanced: "1" }, { replace: true });
           return;
         }
         if (active) {
@@ -63,7 +71,7 @@ export function StudioPage() {
           setCheck(null);
         }
       } catch (e) {
-        if (active) setError((e as Error).message);
+        if (active) setError(userMessage((e as Error).message));
       } finally {
         if (active) setBusy("");
       }
@@ -77,7 +85,7 @@ export function StudioPage() {
   }, [query]);
   async function replace(next: () => Promise<void>) {
     if (
-      draft.dirty &&
+      draft.dirty && (draft.level || draft.boxes.length > 0) &&
       !(await ask("This will replace your unsaved studio changes. Continue?"))
     )
       return;
@@ -108,17 +116,19 @@ export function StudioPage() {
         });
         setDetectionWarnings([]);
         setCheck(null);
-        setNotice("Image ready. Detect candidates, or add boxes manually.");
-        setSearch({}, { replace: true });
+        setNotice("Your drawing is ready. Find the shapes or draw boxes around them.");
+        setSearch({ advanced: "1" }, { replace: true });
       } catch (e) {
-        if (alive.current) setError((e as Error).message);
+        if (alive.current) setError(userMessage((e as Error).message));
       } finally {
         if (alive.current) setBusy("");
       }
     });
   }
   function edit(boxes: Box[]) {
-    setDraft((d) => ({ ...d, boxes, level: null, dirty: true, stage: "edit" }));
+    setDraft((d) => ({ ...d, boxes, level: null, dirty: true, stage: "edit",
+      generation: d.generation ? { ...d.generation, status: 'needs_correction', assessment: null,
+        issues: [{ id: null, message: 'The game was edited. Use Advanced Edit to check and play the current version.' }] } : undefined }));
     setCheck(null);
     setError("");
     setNotice("");
@@ -132,7 +142,7 @@ export function StudioPage() {
       ))
     )
       return;
-    setBusy("Detecting candidates");
+    setBusy("Finding shapes in your drawing");
     setError("");
     request.current?.abort();
     const abort = new AbortController();
@@ -153,12 +163,12 @@ export function StudioPage() {
           "Image dimensions do not match the preview. Replace the image and try again.",
         );
       edit(candidateBoxes(result));
-      setDetectionWarnings(result.warnings);
+      setDetectionWarnings(userNotes(result.warnings));
       setNotice(
-        `${result.candidates.length} candidate boxes found. Choose a type and review each one.`,
+        `${result.candidates.length} shapes found. Correct anything that looks wrong, then choose Approve all.`,
       );
     } catch (e) {
-      if (alive.current) setError((e as Error).message);
+      if (alive.current) setError(userMessage((e as Error).message));
     } finally {
       if (alive.current) setBusy("");
     }
@@ -172,18 +182,24 @@ export function StudioPage() {
       return;
     }
     setBusy("Creating level");
+    request.current?.abort();
+    const abort = new AbortController(); request.current = abort;
     try {
-      const level = await createLevel(draft);
+      const level = await createLevel(draft, abort.signal);
       if (alive.current) {
         setDraft((d) => ({ ...d, level, dirty: true, stage: "play" }));
-        try { setCheck(await api.assess(level)); }
-        catch { setError("The level was created, but its route could not be checked. You can retry after saving."); }
+        try {
+          setBusy('Checking the jumps and trying the game');
+          const estimate = await api.assess(level, abort.signal);
+          const checked = await verifyPlayability(level, estimate, abort.signal);
+          if (alive.current) setCheck(checked);
+        } catch { if (!abort.signal.aborted) setError("The game is ready, but its check could not finish. Please try checking it again."); }
         setNotice(
-          "Valid level created. Check spawn placement and try it before saving.",
+          "Your game is ready to try.",
         );
       }
     } catch (e) {
-      if (alive.current) setError(`Level validation: ${(e as Error).message}`);
+      if (alive.current && !abort.signal.aborted) setError(`Level validation: ${userMessage((e as Error).message)}`);
     } finally {
       if (alive.current) setBusy("");
     }
@@ -202,13 +218,13 @@ export function StudioPage() {
         }));
         setNotice(
           draft.savedId
-            ? "Changes saved to the database."
-            : "Level saved to the database.",
+            ? "Your changes are saved."
+            : "Your game is saved.",
         );
       }
       return saved.id;
     } catch (e) {
-      if (alive.current) setError((e as Error).message);
+      if (alive.current) setError(userMessage((e as Error).message));
       return null;
     } finally {
       if (alive.current) setBusy("");
@@ -218,22 +234,19 @@ export function StudioPage() {
     if (!draft.level) return;
     let id = draft.savedId;
     if (draft.dirty || !id) {
-      if (
-        !(await ask(
-          "Playability checks need a saved level. Save your current level and check it?",
-        ))
-      )
-        return;
       id = (await saveLevel()) || undefined;
     }
     if (!id || !alive.current) return;
     setBusy("Checking playability");
     setError("");
+    request.current?.abort();
+    const abort = new AbortController(); request.current = abort;
     try {
-      const result = await api.check(id);
-      if (alive.current) setCheck(result);
+      const result = await api.check(id, abort.signal);
+      const checked = await verifyPlayability(draft.level, result, abort.signal);
+      if (alive.current) setCheck(checked);
     } catch (e) {
-      if (alive.current) setError((e as Error).message);
+      if (alive.current) setError(userMessage((e as Error).message));
     } finally {
       if (alive.current) setBusy("");
     }
@@ -252,7 +265,7 @@ export function StudioPage() {
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage((e as Error).message));
     }
   }
   const warnings = boxWarnings(draft.boxes, draft.width, draft.height);
@@ -265,13 +278,14 @@ export function StudioPage() {
         <div>
           <div className="eyebrow">YOUR IDEAS, A PLAYABLE WORLD</div>
           <h1>Game studio</h1>
+          <Link to="/studio">Automatic generation →</Link>
           <p>Build a little adventure, one object at a time.</p>
         </div>
         <span className={`badge ${draft.dirty ? "unsaved" : ""}`}>
           {draft.dirty
             ? "Unsaved changes"
             : draft.savedId
-              ? "Saved in database"
+              ? "Saved"
               : "Ready to create"}
         </span>
       </header>
@@ -298,9 +312,6 @@ export function StudioPage() {
                 ? "Sample level"
                 : "Saved level"}
           </span>
-          <small>
-            Local CNN suggestions are used when configured. Review every object.
-          </small>
         </div>
         <label>
           Try a sample
@@ -317,18 +328,16 @@ export function StudioPage() {
                 setNotice(
                   "Sample level loaded. It was not generated from your drawing.",
                 );
-                setSearch({}, { replace: true });
+                setSearch({ advanced: "1" }, { replace: true });
               });
             }}
           >
             <option value="" disabled>
               Choose a sample…
             </option>
-            {["Playable demos", "Diagnostic examples · need changes"].map(category => (
-              <optgroup key={category} label={category}>
-                {samples.filter(s => s.category === category).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </optgroup>
-            ))}
+            <optgroup label="Playable demos">
+              {samples.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </optgroup>
           </select>
         </label>
       </div>
@@ -360,9 +369,7 @@ export function StudioPage() {
                     : "Your saved level"}
               </h2>
               <small>
-                {draft.level.objects.length} objects · {draft.level.world.width}{" "}
-                × {draft.level.world.height} world ·{" "}
-                {draft.savedId ? `ID: ${draft.savedId}` : "Not saved yet"}
+                {draft.level.objects.length} objects{!draft.savedId && " · Not saved yet"}
               </small>
             </div>
             <div className="actions">
@@ -373,7 +380,7 @@ export function StudioPage() {
                 Back to editor
               </button>
               <button disabled={!!busy} onClick={exportLevel}>
-                Export JSON
+                Download game file
               </button>
               <button disabled={!!busy} onClick={() => void validate()}>
                 Check playability
@@ -387,18 +394,7 @@ export function StudioPage() {
               </button>
             </div>
           </div>
-          {check && <>
-            <Playability result={check} />
-            {check.status === "reachable" && !check.verified_in_game && check.path && <button disabled={!!busy} onClick={async () => {
-              setBusy("Replaying route in Phaser");
-              try {
-                const won = await verifyRoute(draft.level!, check.path!);
-                setCheck({ ...check, status: won ? "reachable" : "unknown", verified_in_game: won,
-                  reason: won ? "The route reached the goal in a Phaser replay. This does not guarantee an easy level." : "The simulated route did not reach the goal in Phaser. Review the layout and try again." });
-              } catch (e) { setError((e as Error).message); }
-              finally { setBusy(""); }
-            }}>Verify route in Phaser</button>}
-          </>}
+          {check && <Playability result={check} />}
         </>
       ) : (
         <>
@@ -417,24 +413,24 @@ export function StudioPage() {
               </h2>
               <p>
                 {draft.image
-                  ? `${draft.width} × ${draft.height} oriented pixels · ${(draft.image.file.size / 1024).toFixed(0)} KiB`
+                  ? `${draft.width} × ${draft.height} · ${(draft.image.file.size / 1024).toFixed(0)} KB`
                   : hasEditor
-                    ? "These boxes use game-world coordinates. Shared game rules will validate your changes."
+                    ? "Move or resize the boxes to change your level."
                     : "Try a sample game, or upload a drawing and label the objects yourself."}
               </p>
               {draft.image ? (
                 <>
                   <label>
-                    Detection method
+                    Lighting
                     <select
                       value={method}
                       disabled={!!busy}
                       onChange={(e) => setMethod(e.target.value)}
                     >
                       <option value="adaptive">
-                        Adaptive · changing lighting
+                        Uneven lighting
                       </option>
-                      <option value="otsu">Otsu · even lighting</option>
+                      <option value="otsu">Even lighting</option>
                     </select>
                   </label>
                   <label className="check-label">
@@ -444,14 +440,14 @@ export function StudioPage() {
                       disabled={!!busy}
                       onChange={(e) => setUseModel(e.target.checked)}
                     />
-                    Use local CNN when available
+                    Suggest symbols automatically
                   </label>
                   <button
                     className="primary"
                     disabled={!!busy}
                     onClick={() => void runDetection()}
                   >
-                    Detect candidates
+                    Find shapes
                   </button>
                 </>
               ) : (
@@ -487,8 +483,7 @@ export function StudioPage() {
                 <div>
                   <h2>Ready to build the level?</h2>
                   <p>
-                    Review all objects first. The backend checks the final
-                    positions and game rules.
+                    Correct any boxes or symbols that look wrong, then choose Approve all.
                   </p>
                   {warnings.length > 0 && (
                     <div
@@ -539,7 +534,7 @@ export function StudioPage() {
                     Create level →
                   </button>
                   <small>
-                    Game geometry errors appear here after validation.
+                    Any positions that need fixing will be shown here.
                   </small>
                 </div>
               </section>

@@ -2,8 +2,6 @@ import trail from "../../../contracts/examples/sky-trail.json";
 import flat from "../../../contracts/examples/flat.json";
 import coins from "../../../contracts/examples/coins.json";
 import jump from "../../../contracts/examples/one-jump.json";
-import gap from "../../../contracts/examples/wide-gap.json";
-import high from "../../../contracts/examples/high-goal.json";
 import { parseLevel } from "../../../game/src/contracts";
 export const samples = [
   {
@@ -11,7 +9,7 @@ export const samples = [
     id: "trail",
     name: "Sky trail · jump and collect",
     description:
-      "Cross the gap, jump over spikes, and reach the flag. Coins are optional bonuses.",
+      "Cross the gap, jump over barriers, and reach the portal. Coins are optional bonuses.",
     level: trail,
   },
   {
@@ -34,20 +32,6 @@ export const samples = [
     name: "One small jump",
     description: "Try a jump between platforms.",
     level: jump,
-  },
-  {
-    category: "Diagnostic examples · need changes",
-    id: "gap",
-    name: "Diagnostic · wide gap (unverified)",
-    description: "Explore a level that needs changes.",
-    level: gap,
-  },
-  {
-    category: "Diagnostic examples · need changes",
-    id: "high",
-    name: "Diagnostic · high goal (unverified)",
-    description: "See what the checker can tell you.",
-    level: high,
   },
 ];
 export function sampleLevel(id: string) {

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { PHYSICS as P, parseLevel } from './contracts';
-import { drawBackdrop, drawObject, drawPlayer } from './art';
+import { drawBackdrop, drawObject, drawPlayer, loadArtwork, poseRunner } from './art';
 
 export type GameState = 'ready' | 'playing' | 'dead' | 'completed';
 export interface GameEvent { type: 'state' | 'coin'; state: GameState; score: number }
@@ -9,7 +9,7 @@ export interface GameHandle {
   loadLevel(value: unknown): void; restart(): void; start(): void;
   snapshot(): Snapshot | null; step(frames: number, input?: { direction: number; jump: boolean }): void; destroy(): void;
 }
-interface MountOptions { onEvent?: (event: GameEvent) => void; manual?: boolean; keyboardTarget?: HTMLElement }
+interface MountOptions { onEvent?: (event: GameEvent) => void; onError?: (message: string) => void; manual?: boolean; keyboardTarget?: HTMLElement }
 
 export function mountGame(parent: HTMLElement, initial: unknown, options: MountOptions = {}): GameHandle {
   let current = parseLevel(initial);
@@ -17,20 +17,25 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
   let pending = true;
   class LevelScene extends Phaser.Scene {
     player!: Phaser.GameObjects.Rectangle;
-    playerArt!: Phaser.GameObjects.Graphics;
+    playerArt!: Phaser.GameObjects.Sprite;
     coinArt = new Map<Phaser.GameObjects.GameObject, Phaser.GameObjects.Container>();
     keys!: Record<string, Phaser.Input.Keyboard.Key>;
     state: GameState = 'ready';
     score = 0; ticks = 0; accumulator = 0; jumpHeld = false; coyote = 0; jumpBuffer = 0;
-    jumpQueued = false; startQueued = false; restartQueued = false;
+    jumpQueued = false; startQueued = false; restartQueued = false; facing = 1;
     get body() { return this.player.body as Phaser.Physics.Arcade.Body; }
     emitState() { options.onEvent?.({ type: 'state', state: this.state, score: this.score }); }
+    preload() { loadArtwork(this); }
     create() {
+      if (!this.textures.exists('skater') || !this.textures.exists('barrier')) {
+        if (alive) options.onError?.('Game artwork could not load. Refresh the page to try again.');
+        return;
+      }
       pending = false;
       this.state = 'ready'; this.score = 0; this.ticks = 0; this.accumulator = 0; this.jumpHeld = false; this.coyote = 0; this.jumpBuffer = 0;
-      this.jumpQueued = false; this.startQueued = false; this.restartQueued = false;
+      this.jumpQueued = false; this.startQueued = false; this.restartQueued = false; this.facing = 1;
       this.physics.world.setBounds(0, 0, current.world.width, current.world.height, true, true, true, false);
-      this.cameras.main.setBounds(0, 0, current.world.width, current.world.height);
+      this.cameras.main.setBounds(0, 0, current.world.width, current.world.height).setZoom(1.5);
       drawBackdrop(this); this.coinArt.clear();
       const solids = this.physics.add.staticGroup();
       const coins = this.physics.add.staticGroup();
@@ -53,7 +58,7 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
       const spawn = current.objects.find(o => o.type === 'spawn')!;
       this.player = this.add.rectangle(spawn.x + P.player_width / 2, spawn.y + P.player_height / 2, P.player_width, P.player_height, 0x2877c6);
       this.player.setVisible(false);
-      this.playerArt = drawPlayer(this, P.player_width, P.player_height).setPosition(spawn.x, spawn.y);
+      this.playerArt = drawPlayer(this, P.player_width, P.player_height).setPosition(spawn.x + P.player_width/2, spawn.y + P.player_height);
       this.add.text(spawn.x + P.player_width / 2, spawn.y - 27, 'START', { fontFamily: 'sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#245b75', backgroundColor: '#ffffff' }).setOrigin(.5, 0).setPadding(4, 2);
       this.physics.add.existing(this.player);
       this.body.setCollideWorldBounds(true).setMaxVelocity(P.speed, P.max_fall_speed);
@@ -106,7 +111,9 @@ export function mountGame(parent: HTMLElement, initial: unknown, options: MountO
         this.physics.world.update(0, 1000 / P.fps); this.physics.world.postUpdate(); this.ticks++;
         if (this.body.y >= current.world.height) this.die();
       }
-      this.playerArt.setPosition(this.body.x, this.body.y);
+      if (this.body.velocity.x) this.facing = Math.sign(this.body.velocity.x);
+      poseRunner(this.playerArt, this.ticks, this.body.velocity.x !== 0, this.body.blocked.down, this.body.velocity.y, this.state);
+      this.playerArt.setFlipX(this.facing < 0).setPosition(this.body.x + P.player_width/2, this.body.y + P.player_height);
       this.jumpQueued = false;
       this.jumpHeld = jumping;
     }

@@ -1,28 +1,22 @@
 # DreamCraft
 
-### AI-Powered Sketch-to-Playable Game Generator
+DreamCraft turns a simple level drawing into a 2D platform game. Draw horizontal
+rectangles for platforms, circles for coins, upward triangles for obstacles, one
+capital S for the start and one capital G for the finish.
 
-## Overview
+Studio reads the drawing, builds the level, tries small repairs and tests a path
+through the actual Phaser game. Unclear drawings may need a quick correction.
+Advanced Edit lets you change boxes and approve them together. You can also play
+sample games and save your own levels.
 
-DreamCraft is a web application that converts hand-drawn 2D game levels into playable games.
+The owner's trained model is included at `ml/checkpoints/best.pt`. Set the backend
+path below to use it. Sample games and manual editing work without it. Recognition accuracy on
+complete photographed levels still needs testing with real drawings.
 
-Users upload a sketch containing platforms, obstacles, collectibles, a starting point and a goal. The application identifies these objects, calculates their positions, checks the level's playability and generates an interactive game.
+Only side-view platform games are supported. Maze, racing and survival games are
+not implemented.
 
-DreamCraft combines computer vision, machine learning and game development to automate the process of creating 2D platform games.
-
-## How It Works
-
-The game generation process consists of five stages:
-
-1. **Image Processing:** OpenCV detects objects in the uploaded sketch.
-2. **Object Recognition:** A trained CNN classifies the detected symbols.
-3. **Level Generation:** The application calculates object positions and dimensions.
-4. **Playability Validation:** The system checks reachable paths and attempts limited adjustments when necessary.
-5. **Game Rendering:** Phaser generates the playable game.
-
-Users can play, edit and save their generated levels.
-
-### Supported Objects
+## Supported objects
 
 | Sketch Symbol | Game Object |
 |---|---|
@@ -46,186 +40,224 @@ Sketches should contain clearly drawn symbols, with one starting point and one g
 | Database | SQLite |
 | Playability Validation | Python-based physics simulation |
 
-## Installation and Setup
+## What is implemented
 
-DreamCraft can run locally on Windows, macOS or Linux, or in GitHub Codespaces.
+| Area | Current functionality |
+| --- | --- |
+| Sketch input | PNG/JPEG upload with size checks and oriented preview |
+| Detection | OpenCV candidate boxes; a specialized splitter can separate clearly attached upward triangles from platform rails |
+| Recognition | Five-class CNN using a trusted **local** checkpoint; uncertain predictions require correction |
+| Game generation | Automatic box-to-world scaling, spawn/goal placement and validated level JSON |
+| Limited repairs | Nearby spawn/goal alignment, small supported-hazard size fits, and up to two short gap bridges; changes are logged |
+| Playability | Bounded Python physics route search with `reachable`, `unreachable` and `unknown` outcomes; candidate winning routes are replayed in real Phaser |
+| Gameplay | Phaser 3 platformer with horizontal movement, air control, jumping, collisions, hazards, optional coins, death, restart and goal |
+| Visuals | Cartoon runner with idle/run/jump frames, red-and-white barriers, styled platforms, glowing coins and finish portal |
+| Studio | One-click **Generate My Game** when possible; optional **Advanced Edit** with one **Approve all** button |
+| Persistence | Save and reopen level JSON in FastAPI/SQLite; generation image and repair report stay in the browser session unless downloaded |
+| Testing | Python, React and game unit tests; browser tests exercise real API, OpenCV, controlled CNN inference, Phaser and keyboard input |
 
-### Prerequisites
+## Get the current code
 
-Install the following:
-
-- Python 3.12
-- Node.js 24 or Node.js 22.12+
-- Git
-
-### 1. Clone the Repository
-
-Open a terminal and run:
+If you already have the repository open in Codespaces, skip the clone commands.
 
 ```bash
 git clone https://github.com/SathyaHamsiniP/DreamCraft.git
 cd DreamCraft
 ```
 
-The shared model is available on `main`. Automatic generation and the newer game
-are still in draft PRs #11 and #12. To try that workflow with the shared model,
-use `feature/shared-model-object-sizes`:
+Automatic generation, the shared model and fixed object sizes are now on `main`:
 
 ```bash
 git fetch origin
-git switch feature/shared-model-object-sizes
+git switch main
+git pull --ff-only
 ```
 
-Use `git switch main` to return to main's reviewed-object workflow.
+The setup below starts from the **DreamCraft repository root** in each terminal.
 
-### 2. Install Dependencies
+## Install dependencies
 
-**Windows (PowerShell)**
+Use Python 3.12 and Node.js 24, or Node.js 22.12 or newer. GitHub Codespaces
+usually includes both. Check `python3 --version` and `node --version`. On Windows,
+install [Python](https://www.python.org/downloads/) and
+[Node.js](https://nodejs.org/) first if they are missing.
+
+### Codespaces or Linux
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install 'torch>=2.6,<3' --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -r sketch/requirements.txt
+npm ci --prefix game
+npm ci --prefix frontend
+```
+
+The setup includes the ML and backend packages. Both npm installations are needed
+because Studio reuses the game code. Running the app needs no dataset download or
+Blender installation.
+
+If your Codespace has an older Node version and includes nvm, run `nvm install 24`
+and `nvm use 24` before the npm commands. A GPU is not needed.
+
+### Windows PowerShell
+
+These commands use the virtual environment directly, so you do not need to change
+PowerShell's script policy.
 
 ```powershell
 py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-python -m pip install --upgrade pip
-python -m pip install -r sketch/requirements.txt
-
-npm ci --prefix game
-npm ci --prefix frontend
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install 'torch>=2.6,<3' --index-url https://download.pytorch.org/whl/cpu
+.\.venv\Scripts\python.exe -m pip install -r sketch/requirements.txt
+npm.cmd ci --prefix game
+npm.cmd ci --prefix frontend
 ```
 
-If PowerShell prevents virtual environment activation, use `.\.venv\Scripts\python.exe` instead of `python` for the Python commands.
+## Use the shared model
 
-**macOS / Linux**
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-
-python -m pip install --upgrade pip
-python -m pip install -r sketch/requirements.txt
-
-npm ci --prefix game
-npm ci --prefix frontend
-```
-
-For Linux systems that require a CPU-only PyTorch installation, use the installation instructions at https://pytorch.org/get-started/locally/.
-
-### 3. Use the Shared Model
-
-The owner's trained checkpoint is now included in the repository:
+A normal clone or pull includes the owner's trained checkpoint:
 
 ```text
 DreamCraft/
-└── ml/
-    └── checkpoints/
-        └── best.pt
+  ml/
+    checkpoints/
+      best.pt
 ```
 
-A normal clone or pull includes this 2.6 MB file. Teammates do not need to upload
-weights, download a dataset or install Git LFS. See the
-[checksum and source notes](ml/checkpoints/README.md). New training outputs in
-`ml/runs/` remain ignored. You can still use another trusted local checkpoint by
-setting its absolute path. Requests cannot select or upload model files.
+Teammates do not need to upload a model or download training data. This 2.6 MB file
+is the only checkpoint tracked by Git. Its checksum and source notes are in
+[the shared model folder](ml/checkpoints/README.md). New training outputs in
+`ml/runs/` remain ignored. You can still use a different trusted local file by
+setting its absolute path. Requests cannot choose a path or upload weights.
+See [model setup and limits](backend/RECOGNITION.md).
 
-### 4. Start the Backend
+## Start the backend — terminal 1
 
-Open a terminal inside the DreamCraft project.
-
-**Windows (PowerShell)**
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-
-$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path '.\ml\checkpoints\best.pt').Path
-$env:OMP_NUM_THREADS = '2'
-$env:MKL_NUM_THREADS = '2'
-python -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
-
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
-```
-
-**macOS / Linux**
+### Codespaces or Linux
 
 ```bash
 source .venv/bin/activate
-
 export DREAMCRAFT_CHECKPOINT="$PWD/ml/checkpoints/best.pt"
 export OMP_NUM_THREADS=2
 export MKL_NUM_THREADS=2
 python -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
-
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The model check should print `ready`. The backend runs on port **8000**.
+### Windows PowerShell
 
-Keep this terminal running.
+```powershell
+$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path 'ml/checkpoints/best.pt').Path
+$env:OMP_NUM_THREADS = '2'
+$env:MKL_NUM_THREADS = '2'
+.\.venv\Scripts\python.exe -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-### 5. Start the Frontend
+The model check should print `ready`. If it prints `unavailable` or `error`, check
+that the file exists and matches the existing five-class model. A ready model
+means it loaded; it does not measure its accuracy on photographs.
 
-Open a second terminal in the DreamCraft directory.
+Keep this terminal running. Set `DREAMCRAFT_CHECKPOINT` in the same terminal where
+you start the backend. You may use an absolute path outside the repository instead.
+Do not put this variable or your model path in a frontend environment file.
+
+To use only samples or Advanced Edit without a model, skip the checkpoint and
+model-check commands and run the same Uvicorn command. The app will explain that
+automatic generation is unavailable.
+
+## Start the website — terminal 2
+
+From the repository root:
 
 ```bash
-npm run dev --prefix frontend
+npm run dev --prefix frontend -- --strictPort
 ```
 
-Open the application in your browser:
+In Windows PowerShell, use `npm.cmd run dev --prefix frontend -- --strictPort`.
+Keep this second terminal running too.
 
-http://localhost:5174
+- **On your laptop:** open **http://localhost:5174**.
+- **In Codespaces:** open the **Ports** tab, find **5174**, and choose **Open in
+  Browser**. Use that forwarded address instead of your laptop's localhost.
 
-The frontend runs on port **5174** and communicates with the backend through the development server.
+No `frontend/.env.local` is needed for this setup. Studio sends `/api` requests
+through Vite to the backend on port 8000. If you created an environment file
+earlier, leave `VITE_API_URL` blank; remove any old placeholder URL. You only need
+to forward port 5174 for the website. The API guide is at
+http://127.0.0.1:8000/docs inside the machine running the backend.
 
-### Running in GitHub Codespaces
+After pulling updates, stop both servers with Ctrl+C and start them again using
+the commands above. Refresh the browser. A running server on another Git branch
+does not automatically switch to the new feature branch.
 
-GitHub Codespaces provides a cloud development environment, so local installation is not required.
+## Use Studio
 
-1. Open the DreamCraft repository on GitHub.
-2. Select **Code → Codespaces**.
-3. Create or open a Codespace.
-4. Switch to the required branch.
-5. Follow the Linux installation and startup commands above.
-6. Open port **5174** from the Codespaces Ports tab.
+1. Choose **Create a game**, upload a PNG or JPEG, and choose **Generate My Game**.
+2. If a drawing is unclear, choose the symbol you meant. Otherwise the game is
+   built without asking you to enter object sizes or positions.
+3. Choose **Start game** above the game area. The game comes into view and starts
+   immediately. Restart or R begins another attempt without a second Start click.
+4. Use arrows or A/D to move. Press Space, W or the up arrow to jump. Release the
+   jump key before another jump. Avoid red barriers and gaps, collect optional
+   coins, and reach the purple portal.
+5. Choose **Save level** to keep a game. Open **My Levels** to play or edit it later.
 
-The shared model is already in `ml/checkpoints/best.pt`; no Codespaces upload is
-needed. Use the Linux checkpoint command above in the backend terminal.
+In **Advanced Edit**, correct any wrong boxes or symbols and choose **Approve
+all** once. Approved boxes stay approved while you move, resize or relabel them.
+Added boxes need approval. Missing labels, invalid boxes and invalid level layouts
+still block creation. Images are limited to 5 MiB, 4096 pixels per side and
+12 million pixels total. Saved levels contain game objects; the source photo and
+repair report stay in the browser and are lost on refresh unless downloaded.
 
-Keep the forwarded application port private.
+The normal sample menu offers Sky Trail, Walking Practice, Coin Trail and One
+Small Jump. Their routes are covered by game browser tests. The wide-gap and
+high-goal files stay unchanged as failure cases for regression tests; they are no
+longer offered as games to try. Keeping these tests catches incorrect playability
+claims without confusing the sample menu.
 
-## Using DreamCraft
+Newly generated games use coins that are 20 by 20 game units and obstacles that
+are 48 wide by 24 high, whatever size the symbols were drawn. This also applies
+to Advanced Edit. Coin centres and obstacle bases keep their positions. Artwork
+and collision boxes use the same sizes. The automatic report records size changes,
+even when optional gap and placement repairs are off. Platforms keep their drawn
+proportions. Out-of-bounds objects still need correction; they are not clamped.
+Existing saved levels keep their geometry until recreated from reviewed objects.
+The fixed obstacle is tested with a single jump in Phaser, but nearby gaps,
+raised platforms and other hazards can still make a route difficult.
 
-Open the Studio page and upload a PNG or JPEG image of a game sketch.
+## What the game check means
 
-Select **Generate My Game** to begin processing.
+A found path is an estimate until it is tried in the game. Studio now performs
+that game test automatically after creating or checking a level. Only reaching
+the finish in Phaser sets its displayed verification flag.
 
-The application detects the objects, classifies them using the CNN, creates the level geometry and checks for a playable route.
+The checker first tries a fast search, then finer jump timing when needed. Both
+passes share a fixed state and time budget. **Unknown** means a path was not
+confirmed; it does not mean the level is impossible. A start above a platform can
+fall onto it and no longer gets a warning just for being in the air.
 
-When generation succeeds, the game is displayed in the browser. Unclear symbols or unsuitable layouts may require corrections through Advanced Edit.
+The API's `verified_in_game` starts false. The browser verifies a particular path,
+not every possible way to play. Difficult jumps, unusual collisions and large
+levels can still need changes. See [playability checks](playability/README.md).
 
-### Game Controls
+## Optional standalone game
 
-| Key | Action |
-|---|---|
-| Left / Right Arrow | Move |
-| A / D | Move |
-| Space / W / Up Arrow | Jump |
-| R | Restart |
+The React website already contains the Phaser game. You do not need this third
+server to use Studio. For the separate engine demo:
 
-Players must reach the goal while avoiding obstacles. Coins provide additional points but are not required to complete a level.
+```bash
+npm run dev --prefix game -- --strictPort
+```
 
-### Coin and Obstacle Sizes
+Open http://localhost:5173, or forward 5173 in Codespaces. The normal menu shows
+playable samples. Browser tests can still open the diagnostic fixtures in the
+engine's test view. The standalone game works without the backend; loading a saved
+level needs the backend running too.
 
-New levels use coins that are 20 by 20 game units and obstacles that are 48 wide
-by 24 high, whatever size those symbols were drawn. Coin centres and obstacle
-bases keep their positions. The game uses these same sizes for artwork and
-collisions. Platforms keep their drawn proportions.
-
-The obstacle size is checked against the current jump in the Phaser browser
-tests. Nearby gaps, raised platforms or other obstacles can still make a route
-difficult. Objects that would extend outside the world are reported rather than
-moved silently. Existing saved level files keep their original geometry; recreate
-them from reviewed boxes to use the standard sizes.
-
-## Model Training and Evaluation
+## Model training and evaluation
 
 The CNN was trained using images from Google Quick, Draw! and EMNIST.
 
@@ -245,51 +277,69 @@ The supplied checkpoint is tested here for loading and inference. The original
 dataset and evaluation reports are not included, so those metrics have not been
 reproduced here. They do not represent complete game-generation accuracy.
 
-## Running Tests
+See [public dataset preparation and source terms](ml/PUBLIC_DATASETS.md).
 
-Run the following commands from the project root:
+## Run checks
+
+No dataset download or GPU is required for automated tests. Most tests use
+controlled images and test-only weights; shared-model checks also load the included
+checkpoint, verify its checksum and run inference. They do not measure recognition
+accuracy on real level photos. Stop development servers before browser tests.
+Use a separate test terminal so the tests do not load your production checkpoint.
+
+From the repository root in Codespaces or Linux:
 
 ```bash
-python -m pytest ml/tests contracts/tests backend/tests sketch/tests playability/tests -q
-
+source .venv/bin/activate
+unset DREAMCRAFT_CHECKPOINT DREAMCRAFT_REVIEW_THRESHOLD DREAMCRAFT_PYTHON
+python -m pytest ml/tests backend/tests sketch/tests contracts/tests playability/tests -q
 npm test --prefix game
 npm test --prefix frontend
-
 npm run build --prefix game
 npm run build --prefix frontend
-```
-
-For browser tests, install Playwright Chromium and run:
-
-```bash
-npx --prefix game playwright install --with-deps chromium
-
+cd game
+npx playwright install --with-deps chromium
+cd ..
 npm run test:browser --prefix game
 npm run test:browser --prefix frontend
+npm run test:collection --prefix game
 ```
 
-Stop the normal development servers before starting browser tests.
+On Windows, use `.\.venv\Scripts\python.exe` instead of `python`, `npm.cmd` instead
+of `npm`, and `npx.cmd playwright install chromium` for browser installation.
+In the separate PowerShell test terminal, make the virtual environment's Python
+available to the browser test servers and clear model settings:
 
-## Project Structure
+```powershell
+$env:Path = (Resolve-Path '.venv/Scripts').Path + ';' + $env:Path
+$env:DREAMCRAFT_PYTHON = 'python'
+Remove-Item Env:DREAMCRAFT_CHECKPOINT -ErrorAction SilentlyContinue
+Remove-Item Env:DREAMCRAFT_REVIEW_THRESHOLD -ErrorAction SilentlyContinue
+```
 
-| Directory | Description |
-|---|---|
-| `frontend/` | React application and user interface |
-| `backend/` | API and database operations |
-| `ml/` | CNN training and inference |
-| `sketch/` | Image processing and game generation |
-| `game/` | Phaser game engine |
-| `playability/` | Level validation |
-| `contracts/` | Shared game rules and level formats |
+The builds include TypeScript checks. Browser suites start temporary databases and
+servers on their own test ports. The three GitHub Actions workflows also run the
+ML, backend, game, collection and Studio checks on Ubuntu 24.04.
 
-## Limitations
+## Project folders
 
-DreamCraft currently supports 2D platform games using five predefined object classes.
+| Folder | Purpose |
+| --- | --- |
+| [frontend/](frontend/README.md) | React Studio, upload, object editor, saved levels and game player |
+| [game/](game/README.md) | Shared Phaser engine, artwork, standalone demo and browser tests |
+| [backend/](backend/README.md) | FastAPI, SQLite storage and sketch APIs |
+| [sketch/](sketch/README.md) | OpenCV detection, model adapter, generation and local sheet collection |
+| [playability/](playability/README.md) | Bounded path search and replay information |
+| [contracts/](contracts/README.md) | Shared level schema, coordinates, physics and test fixtures |
+| [ml/](ml/README.md) | Existing CNN, public data importer, training and evaluation |
 
-Complex, overlapping or unclear sketches may require manual corrections. Automatic playability checking uses a bounded simulation and cannot guarantee that every generated game will be easy to complete.
+The five classes and level schema are unchanged. Physics version 1.1 uses gravity
+900, movement speed 180, jump velocity -360, and a 60 Hz update rate. The measured
+jump rise is 69 world units. Artwork uses the same rectangular collision bodies.
+See [artwork credits](game/ART.md) for the licensed runner and barrier sources.
 
-Future improvements may include additional game genres, more object types and improved recognition of complex sketches.
-
-## Repository
-
-https://github.com/SathyaHamsiniP/DreamCraft
+This is a local development setup. User accounts and production deployment are
+not included. SQLite files live in `backend/data/`; datasets belong in `ml/data/`
+and model outputs in `ml/runs/`. Keep data, model weights, virtual environments,
+secrets and generated test reports out of Git. The single shared checkpoint in
+`ml/checkpoints/` is the documented exception for model weights.

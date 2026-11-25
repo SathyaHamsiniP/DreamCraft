@@ -50,6 +50,7 @@ export interface Draft {
     name: string;
     file: File;
   };
+  generationImage?: Draft["image"];
   width: number;
   height: number;
   worldWidth: number;
@@ -57,7 +58,8 @@ export interface Draft {
   level: Level | null;
   savedId?: string;
   dirty: boolean;
-  mode: "manual" | "sample" | "saved";
+  mode: "manual" | "sample" | "saved" | "automatic";
+  generation?: import("./services/automatic").Generation;
   stage: "edit" | "play";
 }
 export const emptyDraft = (): Draft => ({

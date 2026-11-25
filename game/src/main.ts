@@ -1,9 +1,11 @@
 import { mountGame, GameHandle } from './engine';
 const examples = import.meta.glob('../../contracts/examples/*.json', { eager: true, import: 'default' });
+const testView = new URLSearchParams(location.search).has('test');
+const playableSamples = new Set(['flat', 'coins', 'one-jump', 'sky-trail']);
 const levels: Record<string, unknown> = {};
 for (const [path, data] of Object.entries(examples)) {
   const name = path.split('/').pop()!.replace('.json', '');
-  if (!name.startsWith('invalid-')) levels[name] = data;
+  if (!name.startsWith('invalid-') && (testView || playableSamples.has(name))) levels[name] = data;
 }
 const select = document.querySelector<HTMLSelectElement>('#level')!;
 for (const name of Object.keys(levels).sort()) select.add(new Option(name, name));
@@ -11,6 +13,7 @@ select.value = new URLSearchParams(location.search).get('test') === '1' ? 'flat'
 const status = document.querySelector<HTMLElement>('#status')!;
 const handle = mountGame(document.querySelector<HTMLElement>('#game')!, levels[select.value], {
   manual: new URLSearchParams(location.search).get('test') === '1',
+  onError: message => { status.textContent = message; },
   onEvent: event => { status.textContent = `${event.state} · coins: ${event.score}${event.state === 'dead' ? ' · press R to restart' : ''}`; },
 });
 function load(data: unknown) {

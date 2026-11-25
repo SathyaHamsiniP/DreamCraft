@@ -20,8 +20,6 @@ test('real-time Studio movement works before, during and after a jump', async ({
   await page.keyboard.up('ArrowRight');
   await expect.poll(async () => (await position(page)).y).toBe(430);
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
-  await expect(page.getByTestId('game-state')).toHaveText('ready');
-  await page.keyboard.press('Enter');
   await expect(page.getByTestId('game-state')).toHaveText('playing');
   await page.getByLabel('Game area.', { exact: false }).click();
   await page.keyboard.down('ArrowRight');
@@ -34,16 +32,15 @@ test('real-time Studio movement works before, during and after a jump', async ({
   await expect(page.locator('canvas')).toHaveCount(1);
 });
 
-test('Studio verifies a route in Phaser and separates diagnostic samples', async ({ page }) => {
+test('Studio verifies a route in Phaser and offers only playable samples', async ({ page }) => {
   await page.goto('/studio?sample=flat');
   await expect(page.getByTestId('game-state')).toHaveText('ready');
   await page.getByRole('button', { name: 'Back to editor', exact: true }).click();
   await page.getByRole('button', { name: 'Create level →' }).click();
-  await expect(page.getByRole('heading', { name: 'A route was found' })).toBeVisible();
-  await expect(page.getByText('This route has not been verified in Phaser for this request.')).toBeVisible();
-  await page.getByRole('button', { name: 'Verify route in Phaser' }).click();
-  await expect(page.getByText('The route reached the goal in an actual Phaser replay.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'A path to the finish was found' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try the path in the game' })).toHaveCount(0);
+  await expect(page.getByText('An automatic test reached the finish in the game.')).toBeVisible();
   await expect(page.locator('canvas')).toHaveCount(1);
-  await expect(page.locator('optgroup[label="Diagnostic examples · need changes"] option')).toHaveCount(2);
+  await expect(page.locator('option[value="gap"], option[value="high"]')).toHaveCount(0);
   await expect(page.locator('optgroup[label="Playable demos"] option')).toHaveCount(4);
 });

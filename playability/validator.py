@@ -68,26 +68,34 @@ def advance(level, state, direction, jump):
 def timing_assessment(level, path):
     """Probe jump timing in the approximation; this is not a human difficulty rating."""
     spawn = next(o for o in level['objects'] if o['type'] == 'spawn')
+    inputs = [(a['direction'], a['jump']) for a in path for _ in range(a['frames'])]
     passed = []
     for offset in (-3, 3):
-        actions = [dict(a) for a in path]
-        for i in range(1, len(actions)):
-            if actions[i]['jump'] and not actions[i-1]['jump']:
-                amount = max(1-actions[i-1]['frames'], min(offset, actions[i]['frames']-1))
-                actions[i-1]['frames'] += amount
-                actions[i]['frames'] -= amount
         state, outcome = State(spawn['x'], spawn['y']), 'playing'
-        for action in actions:
-            for _ in range(action['frames']):
-                state, outcome = advance(level, state, action['direction'], action['jump'])
-                if outcome != 'playing':
-                    break
+        # Shift jump presses even when a press lasts only one frame.
+        for tick in range(len(inputs) + abs(offset)):
+            direction = inputs[min(tick, len(inputs) - 1)][0]
+            source = tick - offset
+            jump = inputs[source][1] if 0 <= source < len(inputs) else False
+            state, outcome = advance(level, state, direction, jump)
             if outcome != 'playing':
                 break
         passed.append(outcome == 'won')
     return {'status': 'timing_margin' if all(passed) else 'timing_sensitive',
             'tested_offset_frames': 3, 'source': 'python_approximation',
             'note': 'Jump timing was shifted by up to three frames. This does not measure player skill or prove an easy route.'}
+
+
+def compact_path(path):
+    """Group identical inputs while keeping the final position for replay checks."""
+    result = []
+    for action in path:
+        if result and all(result[-1][key] == action[key] for key in ('direction', 'jump')):
+            result[-1].update(frames=result[-1]['frames'] + action['frames'],
+                              expected=action['expected'], tick=action['tick'])
+        else:
+            result.append(dict(action))
+    return result
 
 
 def max_jump_rise():
@@ -108,7 +116,8 @@ def check_playability(level, max_states=20000, max_seconds=3.0, max_ticks=1800):
     goal = next(o for o in level['objects'] if o['type'] == 'goal')
     platforms = [o for o in level['objects'] if o['type'] == 'platform']
     warnings = ['The Python collision model is approximate. A returned route needs replay in Phaser.']
-    info = {'expanded': 0, 'limit_reached': False, 'max_states': max_states, 'max_ticks': max_ticks, 'max_seconds': max_seconds}
+    info = {'expanded': 0, 'limit_reached': False, 'max_states': max_states, 'max_ticks': max_ticks, 'max_seconds': max_seconds,
+            'input_step_frames': 0, 'position_resolution': 0, 'passes': 0}
 
     suggestions = []
     ordered = sorted(platforms, key=lambda p: p['x'])
@@ -119,8 +128,9 @@ def check_playability(level, max_states=20000, max_seconds=3.0, max_ticks=1800):
         rise = left['y'] - right['y']
         if rise > max_jump_rise():
             suggestions.append(f"The platform {right['id']} is {rise:g} units higher than {left['id']}. Consider an intermediate step or lowering it.")
-    if not any(p['x'] < spawn['x'] + P['player_width'] and p['x'] + p['width'] > spawn['x'] and abs(p['y'] - spawn['y'] - P['player_height']) < 1 for p in platforms):
-        suggestions.append('Spawn is not resting on a platform. Review where the player will fall before the first jump.')
+    if not any(p['x'] < spawn['x'] + P['player_width'] and p['x'] + p['width'] > spawn['x']
+               and p['y'] >= spawn['y'] + P['player_height'] - 1 for p in platforms):
+        suggestions.append('The start is above a gap. Move toward a platform as you fall, or move the start above one.')
 
     def report(status, reason, path=None):
         return {'status': status, 'reason': reason, 'warnings': warnings, 'search': {**info, 'elapsed_ms': round((time.monotonic() - started) * 1000)}, 'physics_version': P['version'], 'verified_in_game': False, 'path': path, 'suggestions': suggestions, 'difficulty': timing_assessment(level, path) if path else {'status': 'not_assessed'}}
@@ -133,56 +143,63 @@ def check_playability(level, max_states=20000, max_seconds=3.0, max_ticks=1800):
     if goal['y'] + goal['height'] <= highest_top:
         return report('unreachable', 'The goal is above the highest possible player position, even if every platform were accessible. This bound assumes fixed solid platforms, no flying and no extra jumps.')
 
-    initial = State(spawn['x'], spawn['y'])
-    counter = itertools.count()
-    # Each stored node keeps its predecessor so a route can be replayed.
-    nodes = [(initial, -1, None, 0)]
-    queue = [(0., next(counter), 0)]
-    visited = {}
     depth_limited = False
+    passes = [(6, 6, 30, 1), (1, .5, P['gravity'] * DT, 1.25)]
+    # Reserve states for finer timing without cutting short a quick search on a busy CPU.
+    coarse_states = max(1, int(max_states * .4))
+    for pass_number, (stride, resolution, velocity_step, weight) in enumerate(passes, 1):
+        info.update(passes=pass_number, input_step_frames=stride, position_resolution=resolution)
+        pass_start = info['expanded']
+        initial = State(spawn['x'], spawn['y'])
+        counter = itertools.count()
+        # Each stored node keeps its predecessor so a route can be replayed.
+        nodes = [(initial, -1, None, 0)]
+        queue = [(0., next(counter), 0)]
+        visited = {}
 
-    def key(s):
-        return (round(s.x / 6), round(s.y / 6), round(s.vy / 30), s.grounded, s.jump_held, s.coyote, s.jump_buffer)
+        def key(s):
+            return (round(s.x / resolution), round(s.y / resolution), round(s.vy / velocity_step), s.grounded, s.jump_held, s.coyote, s.jump_buffer)
 
-    while queue:
-        if info['expanded'] >= max_states or time.monotonic() - started >= max_seconds:
-            info['limit_reached'] = True
-            return report('unknown', 'No winning path was found within the search limit.')
-        _, _, index = heapq.heappop(queue)
-        state, _, _, ticks = nodes[index]
-        if visited.get(key(state), float('inf')) <= ticks:
-            continue
-        visited[key(state)] = ticks
-        info['expanded'] += 1
-        if ticks >= max_ticks:
-            depth_limited = True
-            continue
-        for direction, jump in itertools.product((1, 0, -1), (False, True)):
-            next_state = state
-            outcome = 'playing'
-            frames = 0
-            for _ in range(min(6, max_ticks - ticks)):
-                next_state, outcome = advance(level, next_state, direction, jump)
-                frames += 1
-                if outcome != 'playing':
-                    break
-            if next_state is None:
+        while queue:
+            if info['expanded'] >= max_states or time.monotonic() - started >= max_seconds:
+                info['limit_reached'] = True
+                return report('unknown', 'No winning path was found within the search limit.')
+            if pass_number == 1 and info['expanded'] - pass_start >= coarse_states:
+                break
+            _, _, index = heapq.heappop(queue)
+            state, _, _, ticks = nodes[index]
+            if visited.get(key(state), float('inf')) <= ticks:
                 continue
-            action = {'direction': direction, 'jump': jump, 'frames': frames}
-            next_index = len(nodes)
-            nodes.append((next_state, index, action, ticks + frames))
-            if outcome == 'won':
-                path = []
-                while nodes[next_index][1] != -1:
-                    s, parent, a, t = nodes[next_index]
-                    path.append({**a, 'expected': {'x': s.x, 'y': s.y, 'vy': s.vy}, 'tick': t})
-                    next_index = parent
-                path.reverse()
-                return report('reachable', 'A route was found in the Python simulation. It has not been verified in Phaser for this request.', path)
-            if visited.get(key(next_state), float('inf')) <= ticks + frames:
+            visited[key(state)] = ticks
+            info['expanded'] += 1
+            if ticks >= max_ticks:
+                depth_limited = True
                 continue
-            distance = max(abs(goal['x'] - next_state.x) - goal['width'], 0) / (P['speed'] * DT)
-            heapq.heappush(queue, (ticks + frames + distance, next(counter), next_index))
+            for direction, jump in itertools.product((1, 0, -1), (False, True)):
+                next_state, outcome, frames = state, 'playing', 0
+                for _ in range(min(stride, max_ticks - ticks)):
+                    next_state, outcome = advance(level, next_state, direction, jump)
+                    frames += 1
+                    if outcome != 'playing':
+                        break
+                if next_state is None:
+                    continue
+                action = {'direction': direction, 'jump': jump, 'frames': frames}
+                next_index = len(nodes)
+                nodes.append((next_state, index, action, ticks + frames))
+                if outcome == 'won':
+                    path = []
+                    while nodes[next_index][1] != -1:
+                        s, parent, a, t = nodes[next_index]
+                        path.append({**a, 'expected': {'x': s.x, 'y': s.y, 'vy': s.vy}, 'tick': t})
+                        next_index = parent
+                    path.reverse()
+                    return report('reachable', 'A route was found in the Python simulation. It has not been verified in Phaser for this request.', compact_path(path))
+                if visited.get(key(next_state), float('inf')) <= ticks + frames:
+                    continue
+                distance = max(abs(goal['x'] - next_state.x) - goal['width'], 0) / (P['speed'] * DT)
+                # Prefer progress toward the finish; the shortest route is not required.
+                heapq.heappush(queue, (ticks + frames + distance * weight, next(counter), next_index))
     info['limit_reached'] = depth_limited
     return report('unknown', 'No route was found in the sampled states. This does not prove that the level is impossible.')
 

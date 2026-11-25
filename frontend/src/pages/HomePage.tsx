@@ -15,7 +15,7 @@ export function HomePage() {
           </h1>
           <p>
             Turn simple shapes into a platform adventure. Upload a drawing,
-            review the objects, and bring your level to life.
+            generate a game, and check it against your drawing.
           </p>
           <div className="actions">
             <Link to="/studio" className="button primary large">
@@ -25,12 +25,6 @@ export function HomePage() {
               Try sample level ▷
             </Link>
           </div>
-          <p className="honest-note">
-            <span aria-hidden="true">✦</span> Start with samples or label your
-            sketch manually.
-            <br />
-            A trusted local CNN can suggest labels. You review the results.
-          </p>
         </div>
         <div
           className="hero-art"
@@ -120,7 +114,7 @@ export function HomePage() {
           </svg>
           <div className="art-bottom">
             <span className="badge">Sample world</span>
-            <span>Draw → Review → Play</span>
+            <span>Draw → Generate → Play</span>
           </div>
           <div className="art-sticker">
             Made from
@@ -146,8 +140,8 @@ export function HomePage() {
             ],
             [
               "02",
-              "Make it yours",
-              "Find candidates, fix the boxes, and choose what each object does.",
+              "Create your game",
+              "Upload your drawing and choose Generate My Game.",
             ],
             [
               "03",

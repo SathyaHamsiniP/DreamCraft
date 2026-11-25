@@ -48,7 +48,7 @@ export function boxWarnings(
   if (boxes.some((b) => !b.type))
     warnings.push("Choose a type for every object.");
   if (boxes.some((b) => !b.reviewed))
-    warnings.push("Confirm that every object has been reviewed.");
+    warnings.push("Choose Approve all when the boxes and symbols look right.");
   for (const kind of ["spawn", "goal"]) {
     const count = boxes.filter((b) => b.type === kind).length;
     if (count !== 1)

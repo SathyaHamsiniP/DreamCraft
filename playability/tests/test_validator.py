@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -71,3 +72,40 @@ def test_timing_and_geometry_advice_are_separate_from_reachability():
     gap = check_playability(fixture('wide-gap'), max_states=100)
     assert gap['status'] == 'unknown'
     assert any('gap' in text and 'platform' in text for text in gap['suggestions'])
+
+
+def test_search_finds_a_one_frame_jump_window_and_keeps_replay_positions():
+    level = json.loads((Path(__file__).parent / 'fixtures/tight-timing.json').read_text())
+    result = check_playability(level)
+    assert result['status'] == 'reachable'
+    assert result['search']['input_step_frames'] == 1
+    assert result['difficulty']['status'] == 'timing_sensitive'
+    assert not result['verified_in_game']
+    assert any(a['frames'] > 1 for a in result['path'])
+    state = State(50, 430)
+    for action in result['path']:
+        for _ in range(action['frames']):
+            state, outcome = advance(level, state, action['direction'], action['jump'])
+            assert state is not None
+        assert state.x == action['expected']['x']
+        assert state.y == action['expected']['y']
+    assert outcome == 'won'
+
+
+def test_a_start_above_its_platform_is_not_reported_as_a_gap():
+    level = fixture('flat')
+    next(o for o in level['objects'] if o['type'] == 'spawn')['y'] = 200
+    result = check_playability(level)
+    assert result['status'] == 'reachable'
+    assert not any('start' in text.lower() or 'spawn' in text.lower() for text in result['suggestions'])
+    platform = next(o for o in level['objects'] if o['type'] == 'platform')
+    platform.update(x=300, width=660)
+    result = check_playability(level, max_states=100)
+    assert any('start is above a gap' in text for text in result['suggestions'])
+
+
+def test_finer_search_keeps_its_state_and_duration_limits():
+    result = check_playability(fixture('wide-gap'), max_states=10, max_seconds=.1)
+    assert result['status'] == 'unknown'
+    assert result['search']['expanded'] <= 10
+    assert result['search']['limit_reached']

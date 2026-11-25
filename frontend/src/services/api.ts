@@ -1,4 +1,5 @@
 import { parseLevel } from "../../../game/src/contracts";
+import { userMessage } from './messages';
 import type {
   Candidates,
   CheckResult,
@@ -24,10 +25,10 @@ export async function request<T>(
     if (!response.ok) {
       const data = await response.json().catch(() => null);
       throw new Error(
-        data?.error?.message ||
+        userMessage(data?.error?.message ||
           (typeof data?.detail === "string"
             ? data.detail
-            : `Request failed (${response.status}). Please try again.`),
+            : 'Something went wrong. Please try again.')),
       );
     }
     return (await response.json()) as T;
@@ -38,7 +39,7 @@ export async function request<T>(
       );
     if (error instanceof TypeError)
       throw new Error(
-        "Cannot reach the server. Check that the backend is running, then try again.",
+        "Cannot reach the server. Please try again in a moment.",
       );
     throw error;
   } finally {
@@ -72,7 +73,7 @@ export async function normalizedImage(file: File, signal?: AbortSignal) {
     { method: "POST", body: data, signal },
   );
 }
-export async function createLevel(draft: Draft) {
+export async function createLevel(draft: Draft, signal?: AbortSignal) {
   if (!draft.image) {
     return parseLevel({
       schema_version: "1.0",
@@ -84,13 +85,13 @@ export async function createLevel(draft: Draft) {
   }
   const result = await request<{ level: Level }>(
     "/api/sketch/reviewed-level",
-    json({
+    { ...json({
       image_width: draft.width,
       image_height: draft.height,
       world_width: draft.worldWidth,
       world_height: draft.worldHeight,
       objects: draft.boxes.map(({ prediction: _, ...box }) => box),
-    }),
+    }), signal },
   );
   return parseLevel(result.level);
 }
@@ -98,7 +99,7 @@ function record(value: LevelRecord): LevelRecord {
   return { ...value, level: parseLevel(value.level) };
 }
 export const api = {
-  assess(level: Level) { return request<CheckResult>("/api/levels/assess", json(parseLevel(level))); },
+  assess(level: Level, signal?: AbortSignal) { return request<CheckResult>("/api/levels/assess", { ...json(parseLevel(level)), signal }); },
   async list(offset = 0, signal?: AbortSignal) {
     return (
       await request<LevelRecord[]>(`/api/levels?offset=${offset}`, { signal })
@@ -119,10 +120,10 @@ export const api = {
       ),
     );
   },
-  check(id: string) {
+  check(id: string, signal?: AbortSignal) {
     return request<CheckResult>(
       `/api/levels/${encodeURIComponent(id)}/validate`,
-      { method: "POST" },
+      { method: "POST", signal },
     );
   },
 };

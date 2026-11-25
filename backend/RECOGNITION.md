@@ -37,10 +37,10 @@ npm run dev --prefix frontend
 
 Open http://localhost:5174. In Advanced Edit, upload a sheet and leave
 **Suggest symbols automatically** checked, then select **Find shapes**. Correct any
-wrong boxes or symbols and confirm them before creating a level. Missing labels
-and invalid boxes block level creation. Uncheck the suggestion option to label
-manually. The automatic workflow and bulk approval are still on the feature branch
-linked in the main README.
+wrong boxes or symbols, then choose **Approve all** once. Added boxes need approval;
+moving or relabeling an approved box keeps its approval. Missing labels and invalid
+boxes still block level creation. Uncheck the suggestion option to label manually.
+Automatic mode asks only about unclear drawings and still checks the generated game.
 
 For Bash, use `export DREAMCRAFT_CHECKPOINT="$PWD/ml/checkpoints/best.pt"` from
 the repository root and start the same backend. Set `OMP_NUM_THREADS=2` and
