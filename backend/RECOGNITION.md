@@ -1,20 +1,24 @@
 # Local CNN recognition
 
-PR #7 is merged. The server can now classify OpenCV candidate crops with a trusted
-local checkpoint. It keeps the same five labels and level JSON rules. Weights
-are never uploaded through the API, downloaded automatically, or committed to Git.
+The server classifies OpenCV candidate crops with a trusted local checkpoint. It
+keeps the same five labels and level JSON rules. The owner's supplied model is
+included at `ml/checkpoints/best.pt`; a normal clone includes it. Its checksum and
+source notes are in [the shared model folder](../ml/checkpoints/README.md).
+Weights cannot be uploaded through the API or selected by a request.
 
 ## Windows laptop setup
 
-Use your existing trained file at `ml/runs/public/best.pt`, or copy it to a private
-folder outside the repository. Run these PowerShell commands from DreamCraft:
+Use the included file, or choose another trusted local checkpoint. Run these
+PowerShell commands from DreamCraft:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install 'torch>=2.6,<3' --index-url https://download.pytorch.org/whl/cpu
 python -m pip install -r sketch/requirements.txt
-$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path 'ml/runs/public/best.pt').Path
+$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path 'ml/checkpoints/best.pt').Path
+$env:OMP_NUM_THREADS = '2'
+$env:MKL_NUM_THREADS = '2'
 $env:DREAMCRAFT_REVIEW_THRESHOLD = '0.8'
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
@@ -31,17 +35,19 @@ npm ci --prefix frontend
 npm run dev --prefix frontend
 ```
 
-Open http://localhost:5174. Upload a sheet and leave **Use local CNN when available**
-checked, then select **Detect candidates**. Suggested classes are filled in. Check
-the box, label and confidence for each candidate, correct mistakes, and confirm
-**I reviewed this object**. Even high-confidence predictions cannot skip review.
-Create the level only after every object is confirmed. You can uncheck the CNN
-option to use detection and manual labeling alone.
+Open http://localhost:5174. In Advanced Edit, upload a sheet and leave
+**Suggest symbols automatically** checked, then select **Find shapes**. Correct any
+wrong boxes or symbols and confirm them before creating a level. Missing labels
+and invalid boxes block level creation. Uncheck the suggestion option to label
+manually. The automatic workflow and bulk approval are still on the feature branch
+linked in the main README.
 
-For Bash, use `export DREAMCRAFT_CHECKPOINT=/absolute/path/to/best.pt` and start
-the same backend. A Windows laptop file is not accessible from Codespaces or this
-cloud environment. Run the backend on the laptop, or deliberately copy your trusted
-weights to the other machine's ignored run folder. Do not publish them in GitHub.
+For Bash, use `export DREAMCRAFT_CHECKPOINT="$PWD/ml/checkpoints/best.pt"` from
+the repository root and start the same backend. Set `OMP_NUM_THREADS=2` and
+`MKL_NUM_THREADS=2` as well. No model upload is needed in Codespaces. A different
+file on your Windows laptop must still be copied to Codespaces before it can be
+used there. Keep new training outputs in ignored folders such as `ml/runs/`.
+See the [full run commands](../README.md) for both operating systems.
 
 ## Loading and failure behavior
 
@@ -82,26 +88,27 @@ unknown-symbol class. A wrong or unfamiliar drawing can still score highly.
 
 The project owner reports a local Windows experiment with 14,847 Quick Draw and
 EMNIST samples: 9,000 training, 3,000 validation and 2,847 testing. Reported test
-accuracy is 98.84% and macro F1 is 98.85%. The file is ml/runs/public/best.pt on that
-laptop. These are owner-reported figures, not reproduced in the cloud. Neither the
-file nor its metric reports were available here. They measure public symbol crops,
+accuracy is 98.84% and macro F1 is 98.85%. The supplied file is now included at
+`ml/checkpoints/best.pt`, unchanged from the owner's upload. Its loading and real
+inference are tested, but the original dataset and metric reports are not included.
+Those figures have not been reproduced here. They measure public symbol crops,
 not real complete sketch photographs or OpenCV detection accuracy.
 
 Controlled test-only CNN weights verify genuine CPU execution, API scores, box
 coordinates, model caching, missing/corrupt files, manual mode, invalid outputs
 and review flags. Frontend tests verify automatic labels, correction and mandatory
 review. Existing full browser workflows test manual operation without any production
-checkpoint. No fake model predictions are used in the application.
+checkpoint. Shared-model tests also verify the supplied file's checksum, class
+mapping and real predictions through the server adapter. No fake model predictions
+are used in the application.
 
-Still needed on the laptop: test the actual best.pt with several real photos,
+Still needed: test the shared model with several real photos,
 inspect S/G errors and candidate crop quality, tune the review threshold using
 validation examples, and keep an independent photo test set. Do not infer full-app
 recognition accuracy from the reported 98.84% cropped-image score.
 
-Local checks for this integration passed: 146 Python tests, 28 game unit tests,
-23 frontend tests, 17 game browser tests, nine studio browser tests and the
-collection browser test. Both apps pass type checking and production builds.
 One studio browser case intercepts a controlled prediction response to test the
-editor; Python API tests run the actual CNN with test-only weights. The laptop's
-trained checkpoint was not available for these checks. Builds still warn about
-the Phaser bundle size, and Python dependencies report deprecation warnings.
+editor; Python API tests run the actual CNN with test-only weights. The separate
+shared-checkpoint tests run the supplied trained model. Neither check measures
+accuracy on real level photographs. Builds still warn about the Phaser bundle
+size, and Python dependencies report deprecation warnings.

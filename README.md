@@ -67,14 +67,16 @@ git clone https://github.com/SathyaHamsiniP/DreamCraft.git
 cd DreamCraft
 ```
 
-The latest automatic-generation implementation is available on the `feature/sketch-runner-polish` branch:
+The shared model is available on `main`. Automatic generation and the newer game
+are still in draft PRs #11 and #12. To try that workflow with the shared model,
+use `feature/shared-model-object-sizes`:
 
 ```bash
 git fetch origin
-git switch --track origin/feature/sketch-runner-polish
+git switch feature/shared-model-object-sizes
 ```
 
-If this branch already exists locally, use `git switch feature/sketch-runner-polish` instead.
+Use `git switch main` to return to main's reviewed-object workflow.
 
 ### 2. Install Dependencies
 
@@ -108,37 +110,22 @@ npm ci --prefix frontend
 
 For Linux systems that require a CPU-only PyTorch installation, use the installation instructions at https://pytorch.org/get-started/locally/.
 
-### 3. Configure the Trained Model
+### 3. Use the Shared Model
 
-Automatic object recognition requires the trained CNN checkpoint.
-
-Place `best.pt` in:
+The owner's trained checkpoint is now included in the repository:
 
 ```text
 DreamCraft/
 └── ml/
-    └── runs/
-        └── public/
-            └── best.pt
+    └── checkpoints/
+        └── best.pt
 ```
 
-Create the directory if it does not exist.
-
-Windows:
-
-```powershell
-New-Item -ItemType Directory -Force ml\runs\public
-```
-
-macOS / Linux:
-
-```bash
-mkdir -p ml/runs/public
-```
-
-Copy the trained checkpoint into this directory.
-
-The checkpoint is stored locally and is not included in the repository.
+A normal clone or pull includes this 2.6 MB file. Teammates do not need to upload
+weights, download a dataset or install Git LFS. See the
+[checksum and source notes](ml/checkpoints/README.md). New training outputs in
+`ml/runs/` remain ignored. You can still use another trusted local checkpoint by
+setting its absolute path. Requests cannot select or upload model files.
 
 ### 4. Start the Backend
 
@@ -149,7 +136,10 @@ Open a terminal inside the DreamCraft project.
 ```powershell
 .\.venv\Scripts\Activate.ps1
 
-$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path ".\ml\runs\public\best.pt").Path
+$env:DREAMCRAFT_CHECKPOINT = (Resolve-Path '.\ml\checkpoints\best.pt').Path
+$env:OMP_NUM_THREADS = '2'
+$env:MKL_NUM_THREADS = '2'
+python -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
 
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
@@ -159,12 +149,15 @@ python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```bash
 source .venv/bin/activate
 
-export DREAMCRAFT_CHECKPOINT="$(pwd)/ml/runs/public/best.pt"
+export DREAMCRAFT_CHECKPOINT="$PWD/ml/checkpoints/best.pt"
+export OMP_NUM_THREADS=2
+export MKL_NUM_THREADS=2
+python -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
 
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The backend runs on port **8000**.
+The model check should print `ready`. The backend runs on port **8000**.
 
 Keep this terminal running.
 
@@ -193,7 +186,8 @@ GitHub Codespaces provides a cloud development environment, so local installatio
 5. Follow the Linux installation and startup commands above.
 6. Open port **5174** from the Codespaces Ports tab.
 
-To use automatic recognition, upload your trained `best.pt` file into `ml/runs/public/` using the Codespaces file explorer.
+The shared model is already in `ml/checkpoints/best.pt`; no Codespaces upload is
+needed. Use the Linux checkpoint command above in the backend terminal.
 
 Keep the forwarded application port private.
 
@@ -233,7 +227,10 @@ The dataset contains 14,847 images across five object classes.
 | Test accuracy | 98.84% |
 | Macro F1-score | 98.85% |
 
-These results measure classification accuracy on individual sketch symbols. They do not represent complete game-generation accuracy.
+These are the owner's locally reported results on individual sketch symbols.
+The supplied checkpoint is tested here for loading and inference. The original
+dataset and evaluation reports are not included, so those metrics have not been
+reproduced here. They do not represent complete game-generation accuracy.
 
 ## Running Tests
 

@@ -7,6 +7,7 @@ venv/
 ml/data/
 ml/runs/
 *.pt
+!ml/checkpoints/best.pt
 *.pth
 *.ckpt
 *.log

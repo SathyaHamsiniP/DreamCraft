@@ -6,6 +6,11 @@ The input is a cropped image of a rectangle, circle, triangle, S or G drawn with
 
 ## Set up the environment
 
+The owner's trained public-data checkpoint is included at `ml/checkpoints/best.pt`.
+See [shared model setup and checksum](checkpoints/README.md) and the
+[application run commands](../README.md). New training outputs still go in ignored
+`ml/runs/` folders. No dataset download or training is needed to run this model.
+
 Python 3.12 is the tested version. Run the following commands from the repository root, not from inside `ml/`:
 
 ```bash
