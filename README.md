@@ -212,6 +212,19 @@ When generation succeeds, the game is displayed in the browser. Unclear symbols 
 
 Players must reach the goal while avoiding obstacles. Coins provide additional points but are not required to complete a level.
 
+### Coin and Obstacle Sizes
+
+New levels use coins that are 20 by 20 game units and obstacles that are 48 wide
+by 24 high, whatever size those symbols were drawn. Coin centres and obstacle
+bases keep their positions. The game uses these same sizes for artwork and
+collisions. Platforms keep their drawn proportions.
+
+The obstacle size is checked against the current jump in the Phaser browser
+tests. Nearby gaps, raised platforms or other obstacles can still make a route
+difficult. Objects that would extend outside the world are reported rather than
+moved silently. Existing saved level files keep their original geometry; recreate
+them from reviewed boxes to use the standard sizes.
+
 ## Model Training and Evaluation
 
 The CNN was trained using images from Google Quick, Draw! and EMNIST.
