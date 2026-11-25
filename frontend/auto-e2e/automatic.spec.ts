@@ -125,7 +125,7 @@ test('an attached tall spike is separated automatically and cleared by one jump'
   expect(result.candidates).toHaveLength(5);
   expect(result.candidates.some((c: {separation?:string})=>c.separation==='triangle_on_platform')).toBe(true);
   const hazard=result.level.objects.find((o:{type:string})=>o.type==='spike');
-  expect(hazard.height).toBeLessThanOrEqual(24); expect(hazard.width).toBeLessThanOrEqual(48);
+  expect(hazard.height).toBe(24); expect(hazard.width).toBe(48);
   expect(result.changes.some((c:{kind:string})=>c.kind==='fit_hazard')).toBe(true);
   await expect(page.getByText('An automatic test reached the finish in the game.')).toBeVisible();
   await expect(page.getByLabel(/Correct candidate/)).toHaveCount(0);

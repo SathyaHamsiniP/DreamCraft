@@ -10,7 +10,7 @@ from ml import CLASSES
 from playability.validator import check_playability
 from .detection import crop, detect
 from .inference import classify_candidates, valid_prediction
-from .levels import geometry_level
+from .levels import fixed_object_sizes, geometry_level
 from .model_service import local_predictor
 
 MAX_OBJECTS = 64
@@ -47,8 +47,8 @@ def assess(level):
 def repair_level(level, allow_repairs=True):
     """Keep terrain fixed, fit supported hazards and try one short bridge."""
     original = deepcopy(level)
-    working = deepcopy(level)
-    changes, attempts = [], []
+    working, changes = fixed_object_sizes(level)
+    attempts = []
     if allow_repairs:
         for obj in working['objects']:
             if obj['type'] not in ('spawn', 'goal'):
@@ -182,7 +182,7 @@ def generate(image, corrections=None, allow_repairs=True):
     # Keep the image aspect ratio and use one shared coordinate conversion.
     scale = min(960/image.width, 720/image.height)
     world_width, world_height = max(64, round(image.width*scale)), max(64, round(image.height*scale))
-    interpreted = geometry_level(image.width, image.height, objects, world_width, world_height, validate=False)
+    interpreted = geometry_level(image.width, image.height, objects, world_width, world_height, validate=False, standard_sizes=False)
     base['stages'].append('geometry')
     plan = repair_level(interpreted, allow_repairs)
     base.update(plan)

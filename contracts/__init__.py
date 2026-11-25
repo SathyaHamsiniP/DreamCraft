@@ -7,6 +7,7 @@ from jsonschema import Draft7Validator
 
 ROOT = Path(__file__).parent
 PHYSICS = json.loads((ROOT / 'physics.json').read_text())
+OBJECT_SIZES = json.loads((ROOT / 'object-sizes.json').read_text())
 SCHEMA = json.loads((ROOT / 'level.schema.json').read_text())
 _VALIDATOR = Draft7Validator(SCHEMA)
 

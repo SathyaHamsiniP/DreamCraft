@@ -118,7 +118,7 @@ export function AutomaticStudio() {
       {report?.candidates.map((c, i) => <p key={c.id}>Drawing {i + 1}: {symbols.find(s => s.kind === (c.chosen_type || c.predicted_class))?.name || 'Not sure'}{typeof c.confidence === 'number' ? ` · suggestion ${Math.round(c.confidence*100)}%` : ''}{c.ignored_by_user ? ' · skipped' : ''}</p>)}
     </details>}
     {report && <details className="card"><summary>Automatic adjustments ({report.changes.length})</summary>
-      {!report.changes.length && <p>No changes were needed.</p>}{report.changes.map((c, i) => <p key={i}>{c.kind === 'fit_hazard' ? 'Made a barrier small enough to jump over.' : c.kind === 'add_bridge' ? 'Added a small platform across a gap.' : c.kind === 'align_to_platform' ? 'Placed the start or finish on its nearby platform.' : userMessage(c.reason)}</p>)}
+      {!report.changes.length && <p>No changes were needed.</p>}{report.changes.map((c, i) => <p key={i}>{c.kind === 'standard_size' ? c.after.type === 'coin' ? 'Used the standard coin size.' : 'Used the standard obstacle size for a single jump.' : c.kind === 'fit_hazard' ? 'Placed the barrier on its nearby platform.' : c.kind === 'add_bridge' ? 'Added a small platform across a gap.' : c.kind === 'align_to_platform' ? 'Placed the start or finish on its nearby platform.' : userMessage(c.reason)}</p>)}
       <button onClick={downloadReport}>Download changes</button>
     </details>}
   </>;

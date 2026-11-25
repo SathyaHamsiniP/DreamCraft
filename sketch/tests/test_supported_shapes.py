@@ -58,11 +58,12 @@ def test_full_scene_runs_real_test_cnn_without_separating_by_hand(tmp_path,monke
     assert result['status']=='awaiting_phaser',result['issues']
     assert not any(c.get('label_source')=='user' for c in result['candidates'])
     hazard=next(o for o in result['level']['objects'] if o['type']=='spike')
-    assert hazard['height']<=24 and hazard['width']<=48
-    assert any(c['kind']=='fit_hazard' and c['before']['height']>69 for c in result['changes'])
+    assert hazard['height']==24 and hazard['width']==48
+    assert any(c['kind']=='standard_size' and c['before']['height']>69 for c in result['changes'])
     disabled=generate(image,allow_repairs=False)
-    assert disabled['status']=='needs_correction'
-    assert not disabled['changes']
+    assert all(c['kind']=='standard_size' for c in disabled['changes'])
+    assert disabled['changes']
+    assert not any(c['kind'] in ('align_to_platform','fit_hazard','add_bridge') for c in disabled['changes'])
 
 
 def test_two_gaps_get_two_bounded_bridges():

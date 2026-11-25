@@ -37,7 +37,9 @@ def test_whole_scene_uses_real_cnn_and_shared_geometry(configured, scale):
     assert {c['predicted_class'] for c in result['candidates']} == {'platform','coin','spike','spawn','goal'}
     assert result['assessment']['status'] == 'reachable'
     assert not result['assessment']['verified_in_game']
-    assert len(result['changes']) <= 3 and len(result['attempts']) <= 2
+    assert sum(c['kind'] == 'standard_size' for c in result['changes']) == 2
+    assert sum(c['kind'] != 'standard_size' for c in result['changes']) <= 3
+    assert len(result['attempts']) <= 2
     assert result['original_level'] != result['level']
     validate_level(result['level'])
     assert result['stages'] == ['detection','recognition','geometry','playability']
@@ -132,6 +134,20 @@ def test_geometry_failure_does_not_get_clamped_or_hidden():
     result = repair_level(level)
     assert result['problem'] and result['level'] is None
     assert result['original_level'] == level
+
+
+def test_standard_sizes_are_recorded_even_when_optional_repairs_are_off():
+    from sketch.levels import fixed_object_sizes
+    from sketch.tests.test_object_sizes import objects
+    level = dict(schema_version='1.0', world=dict(width=960, height=540), objects=objects(180, 150))
+    before = deepcopy(level)
+    result = repair_level(level, allow_repairs=False)
+    assert level == before and result['original_level'] == before
+    assert result['assessment']['status'] == 'reachable'
+    assert [c['kind'] for c in result['changes']] == ['standard_size', 'standard_size']
+    assert result['level']['objects'][-1]['height'] == 24
+    again, changes = fixed_object_sizes(result['level'])
+    assert again == result['level'] and changes == []
 
 
 def test_endpoint_records_the_actual_stages_and_rejects_bad_inputs(configured, tmp_path):

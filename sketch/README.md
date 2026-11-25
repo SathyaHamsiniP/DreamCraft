@@ -163,6 +163,9 @@ utility fits the image into the world without stretching, centering unused space
 Portrait and landscape images use the same rule. Spawn is anchored at the bottom
 centre of its scaled box, then uses the game's fixed player width and height.
 Goal keeps its scaled box; the checker uses the fixed player dimensions for reach.
+Coins use a fixed 20 by 20 world-unit box at the detected centre. Spikes use a
+fixed 48 by 24 box at the detected bottom centre. These sizes apply in both
+automatic generation and reviewed creation, including very small or large drawings.
 No invalid position is moved into bounds. The shared validator rejects invalid
 geometry, missing spawn/goal, overlaps and unsupported dimensions.
 

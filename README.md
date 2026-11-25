@@ -41,7 +41,8 @@ git clone https://github.com/SathyaHamsiniP/DreamCraft.git
 cd DreamCraft
 ```
 
-While the shared-model changes are in review, use this branch to try them:
+The shared model and fixed sizes for reviewed levels are on `main`. While the
+automatic-generation PRs are in review, use this branch for that full workflow:
 
 ```bash
 git fetch origin
@@ -197,6 +198,16 @@ Small Jump. Their routes are covered by game browser tests. The wide-gap and
 high-goal files stay unchanged as failure cases for regression tests; they are no
 longer offered as games to try. Keeping these tests catches incorrect playability
 claims without confusing the sample menu.
+
+Newly generated games use coins that are 20 by 20 game units and obstacles that
+are 48 wide by 24 high, whatever size the symbols were drawn. This also applies
+to Advanced Edit. Coin centres and obstacle bases keep their positions. Artwork
+and collision boxes use the same sizes. The automatic report records size changes,
+even when optional gap and placement repairs are off. Platforms keep their drawn
+proportions. Out-of-bounds objects still need correction; they are not clamped.
+Existing saved levels keep their geometry until recreated from reviewed objects.
+The fixed obstacle is tested with a single jump in Phaser, but nearby gaps,
+raised platforms and other hazards can still make a route difficult.
 
 ## What the game check means
 

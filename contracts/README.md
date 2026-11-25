@@ -4,6 +4,13 @@
 
 ## Coordinates and objects
 
+`object-sizes.json` sets the sizes used when converting a sketch into a new
+level: coins are 20 by 20 and spikes are 48 by 24 world units. Coins keep their
+centres; spikes keep their bottom centres. Source boxes are kept for recognition
+and editing. The returned JSON contains the fixed sizes, so Phaser artwork,
+collision bodies and the playability checker agree. This does not rewrite saved
+levels or change the schema. Fixed-size objects outside the world are rejected.
+
 The origin is the top-left of the world. X increases to the right and Y increases down. All values are world pixels. Every object's `x` and `y` are its top-left corner, including spawn and goal. Width and height must be positive finite numbers. Edges may touch without overlapping.
 
 A level contains `schema_version`, a `world` with width and height, and an `objects` array. Each object needs `id`, `type`, `x`, `y`, `width` and `height`. IDs must be unique. Types are `platform`, `coin`, `spike`, `spawn` and `goal`. Optional `recognition` objects can store review or model metadata. Unknown top-level and object fields are rejected.

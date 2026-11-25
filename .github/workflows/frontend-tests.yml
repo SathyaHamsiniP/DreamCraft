@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, feature/react-studio]
   pull_request:
-    branches: [main, feature/automatic-sketch-game]
+    branches: [main, feature/automatic-sketch-game, feature/sketch-runner-polish]
 
 permissions:
   contents: read
