@@ -13,6 +13,25 @@ Automatic generation needs your trained model file. The model is not included in
 GitHub. Sample games and manual editing work without it. Recognition accuracy on
 complete photographed levels still needs testing with real drawings.
 
+Only side-view platform games are supported. Maze, racing and survival games are
+not implemented.
+
+## What is implemented
+
+| Area | Current functionality |
+| --- | --- |
+| Sketch input | PNG/JPEG upload with size checks and oriented preview |
+| Detection | OpenCV candidate boxes; a specialized splitter can separate clearly attached upward triangles from platform rails |
+| Recognition | Five-class CNN using a trusted **local** checkpoint; uncertain predictions require correction |
+| Game generation | Automatic box-to-world scaling, spawn/goal placement and validated level JSON |
+| Limited repairs | Nearby spawn/goal alignment, small supported-hazard size fits, and up to two short gap bridges; changes are logged |
+| Playability | Bounded Python physics route search with `reachable`, `unreachable` and `unknown` outcomes; candidate winning routes are replayed in real Phaser |
+| Gameplay | Phaser 3 platformer with horizontal movement, air control, jumping, collisions, hazards, optional coins, death, restart and goal |
+| Visuals | Cartoon runner with idle/run/jump frames, red-and-white barriers, styled platforms, glowing coins and finish portal |
+| Studio | One-click **Generate My Game** when possible; optional **Advanced Edit** with one **Approve all** button |
+| Persistence | Save and reopen level JSON in FastAPI/SQLite; generation image and repair report stay in the browser session unless downloaded |
+| Testing | Python, React and game unit tests; browser tests exercise real API, OpenCV, controlled CNN inference, Phaser and keyboard input |
+
 ## Get the current code
 
 If you already have the repository open in Codespaces, skip the clone commands.
@@ -31,7 +50,9 @@ git switch feature/sketch-runner-polish
 git pull --ff-only
 ```
 
-After the PR is merged, the normal starting branch is `main`. The setup below
+PR #12 is stacked on [draft PR #11](https://github.com/SathyaHamsiniP/DreamCraft/pull/11),
+which contains automatic generation. These changes are still on feature branches.
+After the PRs are merged, the normal starting branch is `main`. The setup below
 starts from the **DreamCraft repository root** in each terminal.
 
 ## Install dependencies
@@ -53,6 +74,10 @@ npm ci --prefix game
 npm ci --prefix frontend
 mkdir -p ml/runs/public
 ```
+
+The setup includes the ML and backend packages. Both npm installations are needed
+because Studio reuses the game code. Running the app needs no dataset download or
+Blender installation.
 
 If your Codespace has an older Node version and includes nvm, run `nvm install 24`
 and `nvm use 24` before the npm commands. A GPU is not needed.
@@ -88,7 +113,8 @@ Creating this folder does not create the model. You must supply the actual file
 from your training run. If `best.pt` is already there, keep it.
 
 For Codespaces, open the Explorer, right-click `ml/runs/public`, choose **Upload**,
-and select `best.pt` from your laptop. A file on your Windows laptop is not
+and select `best.pt` from your laptop. Use the file Explorer, not Studio's drawing
+upload. A file on your Windows laptop is not
 available inside Codespaces until you upload or copy it there.
 
 The folder and model weights are ignored by Git. Do not commit them. The server
@@ -102,6 +128,8 @@ path or upload weights. See [model setup and limits](backend/RECOGNITION.md).
 ```bash
 source .venv/bin/activate
 export DREAMCRAFT_CHECKPOINT="$PWD/ml/runs/public/best.pt"
+export OMP_NUM_THREADS=2
+export MKL_NUM_THREADS=2
 python -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
 python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -110,6 +138,8 @@ python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 
 ```powershell
 $env:DREAMCRAFT_CHECKPOINT = (Resolve-Path 'ml/runs/public/best.pt').Path
+$env:OMP_NUM_THREADS = '2'
+$env:MKL_NUM_THREADS = '2'
 .\.venv\Scripts\python.exe -c "from sketch.model_service import local_predictor; print(local_predictor()[2])"
 .\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -166,7 +196,9 @@ does not automatically switch to the new feature branch.
 In **Advanced Edit**, correct any wrong boxes or symbols and choose **Approve
 all** once. Approved boxes stay approved while you move, resize or relabel them.
 Added boxes need approval. Missing labels, invalid boxes and invalid level layouts
-still block creation.
+still block creation. Images are limited to 5 MiB, 4096 pixels per side and
+12 million pixels total. Saved levels contain game objects; the source photo and
+repair report stay in the browser and are lost on refresh unless downloaded.
 
 The normal sample menu offers Sky Trail, Walking Practice, Coin Trail and One
 Small Jump. Their routes are covered by game browser tests. The wide-gap and
@@ -202,6 +234,12 @@ Open http://localhost:5173, or forward 5173 in Codespaces. The normal menu shows
 playable samples. Browser tests can still open the diagnostic fixtures in the
 engine's test view. The standalone game works without the backend; loading a saved
 level needs the backend running too.
+
+## ML experiment and dataset status
+
+The five unchanged classes are `platform`, `coin`, `spike`, `spawn`, and `goal`. Public training sources are **Google Quick, Draw!** (adapted square/circle/triangle bitmaps) and **EMNIST ByClass** (uppercase S and G). See [public dataset preparation and source terms](ml/PUBLIC_DATASETS.md).
+
+The project owner reported a **local** CPU training run on **14,847 cropped public symbols** (9,000 train / 3,000 validation / 2,847 test), with **98.84% held-out test accuracy** and **98.85% macro F1-score** after 30 epochs. These are **isolated-symbol results**, not full-scene or real-photo game-generation accuracy. The trained checkpoint and evaluation files are local, were not reproduced in GitHub CI and must not be committed as part of the normal repository.
 
 ## Run checks
 
